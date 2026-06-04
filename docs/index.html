@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>뉴스 번역기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://unpkg.com/@mozilla/readability@0.5.0/Readability.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f4; --bg3: #eeede9;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --text: #1a1a1a; --text2: #555; --text3: #999;
+    --blue: #185fa5; --blue-bg: #e6f1fb; --blue-border: rgba(24,95,165,0.3);
+    --green: #0f6e56; --green-bg: #e1f5ee; --green-border: rgba(15,110,86,0.3);
+    --amber: #854f0b; --amber-bg: #faeeda; --amber-border: rgba(133,79,11,0.3);
+    --red: #a32d2d; --red-bg: #fcebeb; --red-border: rgba(163,45,45,0.3);
+    --radius: 8px; --radius-lg: 12px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  body { font-family: var(--font); background: #e8e8e6; color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Top chrome ── */
+  #chrome {
+    background: var(--bg2); border-bottom: 0.5px solid var(--border);
+    padding: 0 14px; height: 44px; display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0;
+  }
+  #chrome .title { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
+  #save-status { font-size: 11px; color: var(--green); background: var(--green-bg); border: 0.5px solid var(--green-border); border-radius: 6px; padding: 3px 9px; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.4s; }
+  #save-status.show { opacity: 1; }
+
+  /* ── Main layout ── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: 220px; flex-shrink: 0; background: var(--bg2);
+    border-right: 0.5px solid var(--border);
+    display: flex; flex-direction: column; transition: width 0.2s ease; overflow: hidden;
+  }
+  #sidebar.collapsed { width: 36px; }
+  #sidebar.collapsed #sidebar-inner { display: none; }
+  #sidebar-toggle-btn:hover { background: var(--bg3) !important; color: var(--text) !important; }
+  #sidebar-collapsed-dots { display: none; flex-direction: column; gap: 5px; align-items: center; padding-top: 44px; }
+  #sidebar.collapsed #sidebar-collapsed-dots { display: flex; }
+  .collapsed-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); }
+  .collapsed-dot.done { background: var(--green); }
+  .collapsed-dot.working { background: var(--amber); }
+
+  #sidebar-inner { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+  #url-form { padding: 10px; border-bottom: 0.5px solid var(--border); display: flex; gap: 6px; }
+  #url-input { flex: 1; height: 28px; border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 0 8px; font-size: 11px; font-family: var(--font); background: var(--bg); color: var(--text); outline: none; }
+  #url-input:focus { border-color: var(--blue); }
+  #url-input::placeholder { color: var(--text3); }
+  #url-add-btn { height: 28px; padding: 0 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); font-size: 11px; cursor: pointer; color: var(--text2); font-family: var(--font); }
+  #url-add-btn:hover { background: var(--bg3); }
+
+  #article-list-header { padding: 6px 10px 4px; display: flex; justify-content: space-between; align-items: center; }
+  #article-list-header span { font-size: 9px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; }
+  #article-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; display: flex; flex-direction: column; gap: 5px; }
+
+  .article-item {
+    border-radius: var(--radius); border: 0.5px solid var(--border); background: var(--bg);
+    padding: 7px 8px; cursor: pointer; display: flex; gap: 6px; align-items: flex-start;
+    transition: border-color 0.15s; position: relative; user-select: none;
+  }
+  .article-item:hover { border-color: var(--border2); }
+  .article-item.active { border-color: var(--blue-border); background: var(--blue-bg); }
+  .article-item.dragging { opacity: 0.4; }
+  .article-item.drag-over { border-color: var(--blue); border-style: dashed; }
+
+  .drag-handle { display: flex; flex-direction: column; gap: 2.5px; padding-top: 3px; cursor: grab; flex-shrink: 0; opacity: 0.35; }
+  .drag-handle:hover { opacity: 0.7; }
+  .drag-handle span { display: block; width: 12px; height: 1.5px; border-radius: 1px; background: var(--text2); }
+  .article-item-body { flex: 1; min-width: 0; }
+  .article-item-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .article-item-domain { font-size: 10px; color: var(--text2); }
+  .article-item-num { font-size: 9px; color: var(--text3); }
+  .status-badge { border-radius: 4px; padding: 1px 6px; font-size: 9px; font-weight: 600; }
+  .status-badge.done { background: var(--green-bg); color: var(--green); }
+  .status-badge.working { background: var(--amber-bg); color: var(--amber); }
+  .status-badge.pending { background: var(--bg3); color: var(--text3); }
+  .status-badge.error { background: var(--red-bg); color: var(--red); }
+  .article-item-title { font-size: 10px; color: var(--text); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .article-delete-btn { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--text3); padding: 2px; border-radius: 4px; font-size: 12px; opacity: 0; transition: opacity 0.15s; line-height: 1; }
+  .article-item:hover .article-delete-btn { opacity: 1; }
+  .article-delete-btn:hover { color: var(--red); background: var(--red-bg); }
+
+  /* ── Right panel ── */
+  #panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
+  #panel-topbar { padding: 8px 14px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; background: var(--bg); }
+  #panel-source { font-size: 11px; color: var(--text2); flex: 1; }
+  .panel-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 13px; }
+
+  #panel-content { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+  /* ── Section boxes ── */
+  .section-box { border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .section-header { padding: 7px 10px; background: var(--bg2); border-bottom: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .section-label { font-size: 10px; font-weight: 600; color: var(--text2); }
+  .section-label .hint { font-weight: 400; opacity: 0.6; }
+  .section-controls { display: flex; gap: 5px; align-items: center; }
+
+  /* Iteration nav */
+  .iter-nav { display: flex; align-items: center; gap: 1px; border: 0.5px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--bg); }
+  .iter-btn { border: none; background: none; cursor: pointer; color: var(--text3); padding: 3px 7px; font-size: 12px; line-height: 1; }
+  .iter-btn:hover { background: var(--bg2); color: var(--text); }
+  .iter-btn:disabled { opacity: 0.3; cursor: default; }
+  .iter-count { font-size: 10px; color: var(--text2); padding: 0 4px; min-width: 28px; text-align: center; border-left: 0.5px solid var(--border); border-right: 0.5px solid var(--border); }
+
+  /* Small button */
+  .btn-sm { border: 0.5px solid var(--border2); border-radius: 6px; background: var(--bg); padding: 3px 8px; font-size: 11px; color: var(--text2); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-family: var(--font); }
+  .btn-sm:hover { background: var(--bg2); }
+  .btn-sm.primary { background: var(--blue-bg); color: var(--blue); border-color: var(--blue-border); }
+  .btn-sm.primary:hover { filter: brightness(0.95); }
+  .btn { border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); padding: 5px 12px; font-size: 12px; color: var(--text2); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-family: var(--font); }
+  .btn:hover { background: var(--bg2); }
+  .btn.primary { background: var(--blue-bg); color: var(--blue); border-color: var(--blue-border); font-weight: 500; }
+
+  /* ── Titles section ── */
+  .title-option { padding: 8px 10px; border-bottom: 0.5px solid var(--border); display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+  .title-option:last-child { border-bottom: none; }
+  .title-option:hover { background: var(--bg2); }
+  .title-option.selected { background: var(--blue-bg); }
+  .title-radio { width: 14px; height: 14px; border-radius: 50%; border: 0.5px solid var(--border2); flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; }
+  .title-option.selected .title-radio { border: 2px solid var(--blue); background: var(--blue-bg); }
+  .title-option.selected .title-radio::after { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--blue); }
+  .title-texts { flex: 1; min-width: 0; }
+  .title-main { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; outline: none; }
+  .title-sub { font-size: 11px; color: var(--text2); outline: none; }
+  .title-main[contenteditable="true"]:focus,
+  .title-sub[contenteditable="true"]:focus { background: rgba(255,255,255,0.7); border-radius: 3px; padding: 1px 3px; }
+
+  /* ── Image section ── */
+  #image-wrap { display: flex; gap: 0; }
+  #image-preview { width: 120px; height: 90px; flex-shrink: 0; background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #image-preview img { width: 100%; height: 100%; object-fit: cover; }
+  #image-placeholder { color: var(--text3); font-size: 11px; text-align: center; }
+  #image-info { flex: 1; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+  #image-prompt-label { font-size: 9px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+  #image-prompt-text { font-size: 11px; color: var(--text2); line-height: 1.5; }
+
+  /* ── Body section ── */
+  #body-content {
+    padding: 12px 14px; font-size: 13px; line-height: 1.8; color: var(--text);
+    min-height: 200px; outline: none; white-space: pre-wrap;
+  }
+  #body-content:focus { background: #fafaf9; }
+  #body-content[contenteditable="true"] { cursor: text; }
+  .body-placeholder { color: var(--text3); font-style: italic; }
+  .working-msg { padding: 16px; font-size: 12px; color: var(--text3); text-align: center; }
+
+  /* ── Settings modal ── */
+  #settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: none; align-items: center; justify-content: center; }
+  #settings-overlay.open { display: flex; }
+  #settings-modal { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border); width: 640px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+  #settings-header { padding: 12px 16px; background: var(--bg2); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  #settings-header h2 { font-size: 14px; font-weight: 600; }
+  #settings-close { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; }
+  #settings-close:hover { background: var(--bg3); color: var(--text); }
+  #settings-body { display: flex; flex: 1; overflow: hidden; }
+  #settings-nav { width: 140px; flex-shrink: 0; border-right: 0.5px solid var(--border); background: var(--bg2); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+  .settings-tab { padding: 7px 10px; border-radius: var(--radius); font-size: 12px; color: var(--text2); cursor: pointer; display: flex; align-items: center; gap: 7px; }
+  .settings-tab:hover { background: var(--bg3); }
+  .settings-tab.active { background: var(--bg); border: 0.5px solid var(--border); color: var(--text); font-weight: 500; }
+  #settings-content { flex: 1; overflow-y: auto; padding: 16px; }
+  .settings-section { display: none; }
+  .settings-section.active { display: block; }
+  .field-group { margin-bottom: 14px; }
+  .field-label { font-size: 11px; color: var(--text2); margin-bottom: 4px; display: block; }
+  .field-row { display: flex; gap: 6px; align-items: center; }
+  input[type="text"], input[type="password"] {
+    height: 30px; border: 0.5px solid var(--border2); border-radius: var(--radius);
+    padding: 0 10px; font-size: 12px; font-family: var(--font); color: var(--text); background: var(--bg); outline: none; width: 100%;
+  }
+  input[type="text"]:focus, input[type="password"]:focus { border-color: var(--blue); }
+  select { height: 30px; border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 0 8px; font-size: 12px; font-family: var(--font); color: var(--text); background: var(--bg); outline: none; }
+  select:focus { border-color: var(--blue); }
+  textarea { border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 8px 10px; font-size: 12px; font-family: var(--font); color: var(--text); background: var(--bg); outline: none; width: 100%; resize: vertical; line-height: 1.6; }
+  textarea:focus { border-color: var(--blue); }
+  .divider { height: 0.5px; background: var(--border); margin: 14px 0; }
+  .routing-row { display: flex; align-items: center; gap: 10px; padding: 9px 11px; background: var(--bg2); border-radius: var(--radius); border: 0.5px solid var(--border); margin-bottom: 6px; }
+  .routing-label { flex: 1; }
+  .routing-label strong { font-size: 12px; font-weight: 500; display: block; }
+  .routing-label small { font-size: 10px; color: var(--text3); }
+  .routing-selects { display: flex; gap: 6px; }
+  .settings-footer { padding: 10px 16px; border-top: 0.5px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; background: var(--bg2); }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 11px; background: var(--bg2); border-radius: var(--radius); border: 0.5px solid var(--border); }
+  .toggle { width: 34px; height: 20px; border-radius: 10px; position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0; border: none; }
+  .toggle.on { background: var(--green); }
+  .toggle.off { background: var(--border2); }
+  .toggle::after { content: ''; position: absolute; top: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: left 0.2s; }
+  .toggle.on::after { left: 17px; }
+  .toggle.off::after { left: 2px; }
+
+  /* ── Prompt sub-tabs ── */
+  .prompt-tabs { display: flex; gap: 2px; margin-bottom: 10px; border-bottom: 0.5px solid var(--border); padding-bottom: 6px; }
+  .prompt-tab { padding: 4px 10px; border-radius: 6px; font-size: 11px; color: var(--text2); cursor: pointer; }
+  .prompt-tab.active { background: var(--blue-bg); color: var(--blue); font-weight: 500; }
+  .prompt-tab:hover:not(.active) { background: var(--bg2); }
+
+  /* ── Spinner ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+
+  /* ── First-run banner ── */
+  #setup-banner { display: none; position: fixed; bottom: 16px; right: 16px; background: var(--bg); border: 0.5px solid var(--blue-border); border-radius: var(--radius-lg); padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 50; max-width: 300px; }
+  #setup-banner.show { display: block; }
+  #setup-banner p { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 10px; }
+  #setup-banner strong { color: var(--text); }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Top chrome -->
+<div id="chrome">
+  <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="사이드바 접기/펼치기" style="background:none;border:0.5px solid var(--border);border-radius:var(--radius);width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:14px;flex-shrink:0;">◀</button>
+  <span class="title">뉴스 번역기</span>
+  <div id="save-status">✓ 저장됨</div>
+  <button class="btn" onclick="openSettings()">⚙ 설정</button>
+  <button class="btn primary" onclick="downloadAll()">↓ 전체 다운로드</button>
+</div>
+
+<!-- Main -->
+<div id="main">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sidebar-inner">
+      <form id="url-form" onsubmit="addUrl(event)">
+        <input id="url-input" type="text" placeholder="URL 붙여넣기 후 Enter..." autocomplete="off">
+        <button type="submit" id="url-add-btn">추가</button>
+      </form>
+      <div id="article-list-header">
+        <span id="article-count">0개 기사</span>
+        <span style="font-size:9px;color:var(--text3);">드래그로 순서 변경</span>
+      </div>
+      <div id="article-list"></div>
+    </div>
+    <div id="sidebar-collapsed-dots" aria-hidden="true"></div>
+  </div>
+
+  <!-- Right panel -->
+  <div id="panel">
+    <div id="panel-topbar" style="display:none;">
+      <span id="panel-source"></span>
+      <button class="btn-sm" onclick="regenerateAll()">↺ 전체 재생성</button>
+      <button class="btn-sm" onclick="downloadSingle()">↓ .txt</button>
+    </div>
+    <div id="panel-empty" class="panel-empty">← URL을 추가하여 시작하세요</div>
+    <div id="panel-content" style="display:none;">
+
+      <!-- Titles -->
+      <div class="section-box">
+        <div class="section-header">
+          <span class="section-label">제목 · 소제목 <span class="hint">(더블클릭 편집)</span></span>
+          <div class="section-controls">
+            <div class="iter-nav">
+              <button class="iter-btn" id="title-prev" onclick="stepTitleIter(-1)">‹</button>
+              <span class="iter-count" id="title-iter-count">1/1</span>
+              <button class="iter-btn" id="title-next" onclick="stepTitleIter(1)">›</button>
+            </div>
+            <button class="btn-sm" onclick="regenerateTitles()">↺ 재생성</button>
+          </div>
+        </div>
+        <div id="titles-body"></div>
+      </div>
+
+      <!-- Image -->
+      <div class="section-box">
+        <div class="section-header">
+          <span class="section-label">생성 이미지</span>
+          <div class="section-controls">
+            <div class="iter-nav">
+              <button class="iter-btn" id="img-prev" onclick="stepImgIter(-1)">‹</button>
+              <span class="iter-count" id="img-iter-count">1/1</span>
+              <button class="iter-btn" id="img-next" onclick="stepImgIter(1)">›</button>
+            </div>
+            <button class="btn-sm" onclick="regenerateImage()">↺ 재생성</button>
+          </div>
+        </div>
+        <div id="image-wrap">
+          <div id="image-preview"><div id="image-placeholder">이미지 없음</div></div>
+          <div id="image-info">
+            <div id="image-prompt-label">사용된 프롬프트</div>
+            <div id="image-prompt-text" style="color:var(--text3);font-size:11px;">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="section-box" style="flex:1;">
+        <div class="section-header">
+          <span class="section-label">번역 본문 <span class="hint">(더블클릭 편집)</span></span>
+          <div class="section-controls">
+            <div class="iter-nav">
+              <button class="iter-btn" id="body-prev" onclick="stepBodyIter(-1)">‹</button>
+              <span class="iter-count" id="body-iter-count">1/1</span>
+              <button class="iter-btn" id="body-next" onclick="stepBodyIter(1)">›</button>
+            </div>
+            <button class="btn-sm" onclick="regenerateBody()">↺ 재생성</button>
+          </div>
+        </div>
+        <div id="body-content" ondblclick="enableBodyEdit()" title="더블클릭하여 편집"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-overlay" onclick="if(event.target===this)closeSettings()">
+  <div id="settings-modal">
+    <div id="settings-header">
+      <h2>설정</h2>
+      <button id="settings-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div id="settings-body">
+      <div id="settings-nav">
+        <div class="settings-tab active" onclick="showSettingsTab('ai')">🤖 AI 모델</div>
+        <div class="settings-tab" onclick="showSettingsTab('prompts')">📝 프롬프트</div>
+        <div class="settings-tab" onclick="showSettingsTab('save')">💾 저장</div>
+      </div>
+      <div id="settings-content">
+
+        <!-- AI tab -->
+        <div class="settings-section active" id="tab-ai">
+          <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">API 키</div>
+          <div style="font-size:11px;color:var(--amber);background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px;margin-bottom:12px;line-height:1.5;">
+            API 키는 이 기기의 브라우저에만 저장됩니다. 서버로 전송되지 않습니다.
+          </div>
+          <div class="field-group">
+            <label class="field-label">Google Gemini API Key</label>
+            <div class="field-row">
+              <input type="password" id="key-gemini" placeholder="AIza...">
+              <button class="btn-sm" onclick="toggleKey('key-gemini')">👁</button>
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">OpenAI API Key</label>
+            <div class="field-row">
+              <input type="password" id="key-openai" placeholder="sk-proj-...">
+              <button class="btn-sm" onclick="toggleKey('key-openai')">👁</button>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">작업별 AI 배정</div>
+
+          <div class="routing-row">
+            <div class="routing-label"><strong>기사 번역</strong><small>한국어 신문 스타일 번역</small></div>
+            <div class="routing-selects">
+              <select id="route-trans-provider" onchange="updateModelOptions('trans')">
+                <option value="gemini">Gemini</option>
+                <option value="openai">OpenAI</option>
+              </select>
+              <select id="route-trans-model"></select>
+            </div>
+          </div>
+          <div class="routing-row">
+            <div class="routing-label"><strong>제목 · 소제목 생성</strong><small>3가지 옵션 생성</small></div>
+            <div class="routing-selects">
+              <select id="route-titles-provider" onchange="updateModelOptions('titles')">
+                <option value="gemini">Gemini</option>
+                <option value="openai">OpenAI</option>
+              </select>
+              <select id="route-titles-model"></select>
+            </div>
+          </div>
+          <div class="routing-row">
+            <div class="routing-label"><strong>이미지 생성</strong><small>기사에 맞는 이미지 생성</small></div>
+            <div class="routing-selects">
+              <select id="route-image-provider" onchange="updateModelOptions('image')">
+                <option value="openai">OpenAI (GPT Image)</option>
+                <option value="gemini">Gemini Image</option>
+              </select>
+              <select id="route-image-model"></select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Prompts tab -->
+        <div class="settings-section" id="tab-prompts">
+          <div class="prompt-tabs">
+            <div class="prompt-tab active" onclick="showPromptTab('translation')">기사 번역</div>
+            <div class="prompt-tab" onclick="showPromptTab('titles')">제목 · 소제목</div>
+            <div class="prompt-tab" onclick="showPromptTab('image')">이미지</div>
+          </div>
+          <div id="prompt-translation">
+            <label class="field-label">기사 번역 프롬프트</label>
+            <textarea id="prompt-translation-text" rows="10"></textarea>
+          </div>
+          <div id="prompt-titles" style="display:none;">
+            <label class="field-label">제목 · 소제목 생성 프롬프트</label>
+            <textarea id="prompt-titles-text" rows="10"></textarea>
+          </div>
+          <div id="prompt-image" style="display:none;">
+            <label class="field-label">이미지 생성 프롬프트 <span style="font-size:10px;color:var(--text3);">({summary} = 기사 요약)</span></label>
+            <textarea id="prompt-image-text" rows="6"></textarea>
+          </div>
+        </div>
+
+        <!-- Save tab -->
+        <div class="settings-section" id="tab-save">
+          <div style="padding:10px 12px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:var(--radius);font-size:12px;color:var(--blue);line-height:1.6;margin-bottom:14px;">
+            <strong>브라우저 버전 저장 방식</strong><br>
+            기사 데이터는 브라우저 로컬 스토리지에 날짜별로 자동 저장됩니다. 파일로 내보내려면 <strong>전체 다운로드</strong> 버튼을 사용하세요.
+          </div>
+          <div class="toggle-row">
+            <div>
+              <strong style="font-size:12px;">시작 시 오늘 기사 자동 로드</strong>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px;">앱 시작 시 오늘 저장된 기사를 자동으로 불러옴</div>
+            </div>
+            <button class="toggle on" id="auto-load-toggle" onclick="toggleAutoLoad()"></button>
+          </div>
+          <div style="margin-top:14px;">
+            <button class="btn" onclick="clearTodayData()" style="color:var(--red);border-color:var(--red-border);">오늘 데이터 초기화</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <div class="settings-footer">
+      <button class="btn" onclick="resetPrompts()">프롬프트 초기화</button>
+      <button class="btn primary" onclick="saveSettings()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- First-run banner -->
+<div id="setup-banner">
+  <p><strong>API 키를 설정해 주세요</strong><br>번역 및 이미지 생성을 시작하려면 Gemini 또는 OpenAI API 키가 필요합니다.</p>
+  <div style="display:flex;gap:8px;">
+    <button class="btn primary" onclick="openSettings();hideBanner()">설정 열기</button>
+    <button class="btn" onclick="hideBanner()">나중에</button>
+  </div>
+</div>
+
+<script>
+// ─── Constants ────────────────────────────────────────────────────────────────
+const GEMINI_MODELS       = ['gemini-3.5-flash','gemini-2.0-flash','gemini-2.5-flash-preview-05-20','gemini-2.5-pro-preview-05-06'];
+const OPENAI_TEXT_MODELS  = ['gpt-5.4-2026-03-05','gpt-4o','gpt-4o-mini'];
+const OPENAI_IMAGE_MODELS = ['gpt-image-2-2026-04-21','dall-e-3','dall-e-2'];
+const GEMINI_IMAGE_MODELS = ['gemini-3.1-flash-image','gemini-3-pro-image'];
+
+const DEFAULT_SETTINGS = {
+  apiKeys: { gemini: '', openai: '' },
+  aiRouting: {
+    translation: { provider: 'gemini', model: 'gemini-3.5-flash' },
+    titles:      { provider: 'gemini', model: 'gemini-3.5-flash' },
+    image:       { provider: 'openai', model: 'gpt-image-2-2026-04-21' }
+  },
+  prompts: {
+    translation: `당신은 전문 한국어 신문 기자 겸 번역가입니다.\n아래 영어 뉴스 기사를 한국어 신문 기사체로 번역하세요.\n- 격식체(합쇼체)를 사용하세요\n- 객관적인 보도 문체를 유지하세요\n- 모든 핵심 사실, 인용구, 데이터를 보존하세요\n- 강력한 첫 문단(리드)으로 시작하세요\n- 번역된 기사 본문만 출력하고 설명은 생략하세요`,
+    titles: `당신은 한국 신문 편집장입니다. 아래 한국어 뉴스 기사를 바탕으로 제목과 소제목 쌍을 정확히 3개 생성하세요.\n다음 JSON 형식으로만 응답하세요 (다른 텍스트 없이):\n[\n  {"title": "제목1", "subtitle": "소제목1"},\n  {"title": "제목2", "subtitle": "소제목2"},\n  {"title": "제목3", "subtitle": "소제목3"}\n]\n제목: 20자 이내, 임팩트 있게. 소제목: 40자 이내, 정보 전달 위주.`,
+    image: `Create a professional editorial news photograph for a Korean newspaper article about: {summary}. Photorealistic, editorial style, neutral and objective, suitable for front page newspaper use. No text or watermarks.`
+  },
+  autoLoadToday: true
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let articles = [];
+let selectedId = null;
+let settings = {};
+let sidebarCollapsed = false;
+let dragSrcId = null;
+let saveTimer = null;
+
+// ─── Settings (localStorage) ──────────────────────────────────────────────────
+function loadSettingsLocal() {
+  try {
+    const saved = localStorage.getItem('newsmaker-settings');
+    if (saved) {
+      const s = JSON.parse(saved);
+      return {
+        ...DEFAULT_SETTINGS, ...s,
+        apiKeys:   { ...DEFAULT_SETTINGS.apiKeys,   ...s.apiKeys },
+        aiRouting: { ...DEFAULT_SETTINGS.aiRouting, ...s.aiRouting },
+        prompts:   { ...DEFAULT_SETTINGS.prompts,   ...s.prompts }
+      };
+    }
+  } catch(_) {}
+  return { ...DEFAULT_SETTINGS };
+}
+
+function persistSettings(s) {
+  localStorage.setItem('newsmaker-settings', JSON.stringify(s));
+}
+
+// ─── Article storage (localStorage, keyed by date) ────────────────────────────
+function todayKey() {
+  const d = new Date();
+  return `newsmaker-articles-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function saveArticlesLocal() {
+  localStorage.setItem(todayKey(), JSON.stringify(articles));
+}
+
+function loadArticlesLocal() {
+  try {
+    const saved = localStorage.getItem(todayKey());
+    return saved ? JSON.parse(saved) : [];
+  } catch(_) { return []; }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+function init() {
+  settings = loadSettingsLocal();
+  if (settings.autoLoadToday) {
+    const saved = loadArticlesLocal();
+    if (saved.length > 0) {
+      articles = saved;
+      selectedId = articles[0].id;
+    }
+  }
+  renderSidebar();
+  renderPanel();
+  // Show setup banner if no API keys
+  if (!settings.apiKeys.gemini && !settings.apiKeys.openai) {
+    document.getElementById('setup-banner').classList.add('show');
+  }
+}
+
+function hideBanner() { document.getElementById('setup-banner').classList.remove('show'); }
+
+// ─── URL add ──────────────────────────────────────────────────────────────────
+function addUrl(e) {
+  e.preventDefault();
+  const input = document.getElementById('url-input');
+  const url = input.value.trim();
+  if (!url) return;
+  input.value = '';
+
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const article = {
+    id, url,
+    domain: (() => { try { return new URL(url).hostname.replace('www.',''); } catch { return url.slice(0,30); } })(),
+    status: 'pending',
+    originalText: '',
+    bodyIterations: [],
+    selectedBodyIteration: 0,
+    titleIterations: [],
+    selectedTitleIteration: 0,
+    selectedTitleIndex: 0,
+    imageIterations: [],
+    selectedImageIteration: 0,
+  };
+
+  articles.push(article);
+  if (!selectedId) selectedId = id;
+  renderSidebar();
+  renderPanel();
+  processArticle(id);
+}
+
+// ─── Pipeline ─────────────────────────────────────────────────────────────────
+async function processArticle(id) {
+  const a = getArticle(id);
+  if (!a) return;
+
+  // 1. Scrape
+  setStatus(id, 'scraping'); renderSidebar();
+  const scraped = await apiScrape(a.url);
+  if (scraped.error) { setStatus(id, 'error', scraped.error); renderSidebar(); if (selectedId===id) renderPanel(); return; }
+  a.originalText = scraped.content;
+  a.scrapedTitle = scraped.title;
+
+  // 2. Translate
+  setStatus(id, 'translating'); renderSidebar(); if (selectedId===id) renderPanel();
+  const translated = await apiTranslate(a.originalText);
+  if (translated.error) { setStatus(id, 'error', translated.error); renderSidebar(); if (selectedId===id) renderPanel(); return; }
+  a.bodyIterations.push(translated.text);
+  a.selectedBodyIteration = a.bodyIterations.length - 1;
+
+  // 3. Titles + Image in parallel
+  setStatus(id, 'generating'); renderSidebar(); if (selectedId===id) renderPanel();
+  const [titlesRes, imageRes] = await Promise.all([
+    apiTitles(translated.text),
+    apiImage((scraped.excerpt || scraped.title || '').slice(0, 300))
+  ]);
+
+  if (titlesRes.titles) {
+    a.titleIterations.push(titlesRes.titles);
+    a.selectedTitleIteration = a.titleIterations.length - 1;
+  }
+  if (imageRes.image) {
+    a.imageIterations.push({ data: imageRes.image, prompt: imageRes.prompt });
+    a.selectedImageIteration = a.imageIterations.length - 1;
+  }
+
+  setStatus(id, 'done'); renderSidebar(); if (selectedId===id) renderPanel();
+  autoSave();
+}
+
+// ─── Regenerate ───────────────────────────────────────────────────────────────
+async function regenerateAll() {
+  const a = selected(); if (!a) return;
+  processArticle(a.id);
+}
+
+async function regenerateBody() {
+  const a = selected(); if (!a || !a.originalText) return;
+  const btn = event.target;
+  btn.textContent = '…'; btn.disabled = true;
+  const r = await apiTranslate(a.originalText);
+  btn.textContent = '↺ 재생성'; btn.disabled = false;
+  if (r.error) return alert(r.error);
+  a.bodyIterations.push(r.text);
+  a.selectedBodyIteration = a.bodyIterations.length - 1;
+  renderPanel(); autoSave();
+}
+
+async function regenerateTitles() {
+  const a = selected(); if (!a) return;
+  const body = a.bodyIterations[a.selectedBodyIteration];
+  if (!body) return;
+  const btn = event.target;
+  btn.textContent = '…'; btn.disabled = true;
+  const r = await apiTitles(body);
+  btn.textContent = '↺ 재생성'; btn.disabled = false;
+  if (r.error) return alert(r.error);
+  if (r.titles) {
+    a.titleIterations.push(r.titles);
+    a.selectedTitleIteration = a.titleIterations.length - 1;
+    a.selectedTitleIndex = 0;
+  }
+  renderPanel(); autoSave();
+}
+
+async function regenerateImage() {
+  const a = selected(); if (!a) return;
+  const btn = event.target;
+  btn.textContent = '…'; btn.disabled = true;
+  const summary = (a.scrapedTitle || '').slice(0, 300);
+  const r = await apiImage(summary);
+  btn.textContent = '↺ 재생성'; btn.disabled = false;
+  if (r.error) return alert(r.error);
+  a.imageIterations.push({ data: r.image, prompt: r.prompt });
+  a.selectedImageIteration = a.imageIterations.length - 1;
+  renderPanel(); autoSave();
+}
+
+// ─── Direct API implementations ───────────────────────────────────────────────
+async function apiScrape(url) {
+  try {
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const r = await fetch(proxyUrl);
+    const data = await r.json();
+    if (!data.contents) throw new Error('페이지를 가져올 수 없습니다');
+    const doc = new DOMParser().parseFromString(data.contents, 'text/html');
+    const base = doc.createElement('base');
+    base.href = url;
+    doc.head.prepend(base);
+    const reader = new Readability(doc);
+    const article = reader.parse();
+    if (!article) throw new Error('기사 내용을 추출할 수 없습니다');
+    return { title: article.title, content: article.textContent.trim(), excerpt: article.excerpt || '' };
+  } catch(e) { return { error: e.message }; }
+}
+
+async function apiTranslate(text) {
+  try {
+    const { provider, model } = settings.aiRouting.translation;
+    const prompt = `${settings.prompts.translation}\n\n기사 원문:\n${text}`;
+    const result = provider === 'openai'
+      ? await callOpenAIText(settings.apiKeys.openai, model, prompt)
+      : await callGemini(settings.apiKeys.gemini, model, prompt);
+    return { text: result };
+  } catch(e) { return { error: e.message }; }
+}
+
+async function apiTitles(article) {
+  try {
+    const { provider, model } = settings.aiRouting.titles;
+    const prompt = `${settings.prompts.titles}\n\n기사:\n${article}`;
+    const result = provider === 'openai'
+      ? await callOpenAIText(settings.apiKeys.openai, model, prompt)
+      : await callGemini(settings.apiKeys.gemini, model, prompt);
+    const jsonMatch = result.match(/\[[\s\S]*?\]/);
+    if (!jsonMatch) throw new Error('제목 생성 응답을 파싱할 수 없습니다');
+    const titles = JSON.parse(jsonMatch[0]);
+    return { titles };
+  } catch(e) { return { error: e.message }; }
+}
+
+async function apiImage(summary) {
+  try {
+    const { provider, model } = settings.aiRouting.image;
+    const imagePrompt = settings.prompts.image.replace('{summary}', summary);
+    const image = provider === 'gemini'
+      ? await generateImageGemini(settings.apiKeys.gemini, model, imagePrompt)
+      : await generateImageOpenAI(settings.apiKeys.openai, model, imagePrompt);
+    return { image, prompt: imagePrompt };
+  } catch(e) { return { error: e.message }; }
+}
+
+// ─── AI helpers ───────────────────────────────────────────────────────────────
+async function callGemini(apiKey, model, prompt) {
+  if (!apiKey) throw new Error('Gemini API 키가 설정되지 않았습니다');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 8192 } })
+  });
+  const data = await r.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callOpenAIText(apiKey, model, prompt) {
+  if (!apiKey) throw new Error('OpenAI API 키가 설정되지 않았습니다');
+  const r = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: model || 'gpt-4o', messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
+  });
+  const data = await r.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.choices?.[0]?.message?.content || '';
+}
+
+async function generateImageGemini(apiKey, model, prompt) {
+  if (!apiKey) throw new Error('Gemini API 키가 설정되지 않았습니다');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
+    })
+  });
+  const data = await r.json();
+  if (data.error) throw new Error(data.error.message);
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const imgPart = parts.find(p => p.inlineData);
+  if (!imgPart) throw new Error('Gemini에서 이미지를 받지 못했습니다');
+  const mime = imgPart.inlineData.mimeType || 'image/jpeg';
+  return `data:${mime};base64,${imgPart.inlineData.data}`;
+}
+
+async function generateImageOpenAI(apiKey, model, prompt) {
+  if (!apiKey) throw new Error('OpenAI API 키가 설정되지 않았습니다');
+  const resolvedModel = model || 'gpt-image-2';
+  const body = resolvedModel.startsWith('dall-e')
+    ? { model: resolvedModel, prompt, n: 1, size: '1024x1024', response_format: 'b64_json' }
+    : { model: resolvedModel, prompt, n: 1, size: '1024x1024' };
+  const r = await fetch('https://api.openai.com/v1/images/generations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify(body)
+  });
+  const data = await r.json();
+  if (data.error) throw new Error(data.error.message);
+  const b64 = data.data?.[0]?.b64_json;
+  if (!b64) throw new Error('이미지 데이터를 받지 못했습니다');
+  return `data:image/jpeg;base64,${b64}`;
+}
+
+// ─── Iteration nav ────────────────────────────────────────────────────────────
+function stepBodyIter(dir) {
+  const a = selected(); if (!a) return;
+  a.selectedBodyIteration = clamp(a.selectedBodyIteration + dir, 0, a.bodyIterations.length - 1);
+  renderPanel();
+}
+function stepTitleIter(dir) {
+  const a = selected(); if (!a) return;
+  a.selectedTitleIteration = clamp(a.selectedTitleIteration + dir, 0, a.titleIterations.length - 1);
+  renderPanel();
+}
+function stepImgIter(dir) {
+  const a = selected(); if (!a) return;
+  a.selectedImageIteration = clamp(a.selectedImageIteration + dir, 0, a.imageIterations.length - 1);
+  renderPanel();
+}
+
+// ─── Render sidebar ───────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('article-list');
+  document.getElementById('article-count').textContent = `${articles.length}개 기사`;
+  list.innerHTML = '';
+  const dots = document.getElementById('sidebar-collapsed-dots');
+  dots.innerHTML = '';
+
+  articles.forEach((a, i) => {
+    const selTitle = a.titleIterations?.[a.selectedTitleIteration]?.[a.selectedTitleIndex];
+    const displayTitle = selTitle?.title || a.scrapedTitle || a.url.slice(0,40);
+
+    const dot = document.createElement('div');
+    dot.className = 'collapsed-dot ' + (a.status==='done' ? 'done' : a.status==='error' ? '' : 'working');
+    dot.title = `${i+1}. ${a.domain}`;
+    dots.appendChild(dot);
+
+    const item = document.createElement('div');
+    item.className = 'article-item' + (a.id === selectedId ? ' active' : '');
+    item.dataset.id = a.id;
+    item.draggable = true;
+    item.innerHTML = `
+      <div class="drag-handle"><span></span><span></span><span></span></div>
+      <div class="article-item-body">
+        <div class="article-item-meta">
+          <span class="article-item-domain">${i+1}. ${a.domain}</span>
+          <span class="status-badge ${statusClass(a.status)}">${statusLabel(a.status)}</span>
+        </div>
+        <div class="article-item-title">${escHtml(displayTitle)}</div>
+      </div>
+      <button class="article-delete-btn" onclick="deleteArticle('${a.id}',event)" title="삭제">✕</button>
+    `;
+    item.addEventListener('click', (e) => {
+      if (e.target.classList.contains('article-delete-btn')) return;
+      selectedId = a.id;
+      renderSidebar();
+      renderPanel();
+    });
+    item.addEventListener('dragstart', e => { dragSrcId = a.id; item.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    item.addEventListener('dragend', () => item.classList.remove('dragging'));
+    item.addEventListener('dragover', e => { e.preventDefault(); item.classList.add('drag-over'); });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+    item.addEventListener('drop', e => { e.preventDefault(); item.classList.remove('drag-over'); reorderArticle(dragSrcId, a.id); });
+    list.appendChild(item);
+  });
+}
+
+function reorderArticle(srcId, targetId) {
+  if (srcId === targetId) return;
+  const si = articles.findIndex(a => a.id === srcId);
+  const ti = articles.findIndex(a => a.id === targetId);
+  if (si === -1 || ti === -1) return;
+  const [item] = articles.splice(si, 1);
+  articles.splice(ti, 0, item);
+  renderSidebar();
+  autoSave();
+}
+
+function deleteArticle(id, e) {
+  e.stopPropagation();
+  if (!confirm('이 기사를 삭제할까요?')) return;
+  articles = articles.filter(a => a.id !== id);
+  if (selectedId === id) selectedId = articles[0]?.id || null;
+  renderSidebar();
+  renderPanel();
+  autoSave();
+}
+
+// ─── Render panel ─────────────────────────────────────────────────────────────
+function renderPanel() {
+  const a = selected();
+  const topbar = document.getElementById('panel-topbar');
+  const empty = document.getElementById('panel-empty');
+  const content = document.getElementById('panel-content');
+
+  if (!a) {
+    topbar.style.display = 'none';
+    empty.style.display = 'flex';
+    content.style.display = 'none';
+    return;
+  }
+
+  topbar.style.display = 'flex';
+  empty.style.display = 'none';
+  content.style.display = 'flex';
+
+  document.getElementById('panel-source').textContent = `${a.domain} · ${statusLabel(a.status)}`;
+
+  const titlesBody = document.getElementById('titles-body');
+  const titleIters = a.titleIterations || [];
+  const curTitles = titleIters[a.selectedTitleIteration] || [];
+  updateIterNav('title', a.selectedTitleIteration, titleIters.length);
+
+  if (a.status !== 'done' && titleIters.length === 0) {
+    titlesBody.innerHTML = `<div class="working-msg"><span class="spinner"></span> ${statusLabel(a.status)}...</div>`;
+  } else if (curTitles.length === 0) {
+    titlesBody.innerHTML = `<div class="working-msg" style="color:var(--text3);">제목 없음</div>`;
+  } else {
+    titlesBody.innerHTML = curTitles.map((t, i) => `
+      <div class="title-option ${i === a.selectedTitleIndex ? 'selected' : ''}" onclick="selectTitle(${i})">
+        <div class="title-radio"></div>
+        <div class="title-texts">
+          <div class="title-main"
+               ondblclick="makeEditable(this, '${a.id}','title',${i})"
+               data-iter="${a.selectedTitleIteration}" data-idx="${i}" data-field="title"
+          >${escHtml(t.title || '')}</div>
+          <div class="title-sub"
+               ondblclick="makeEditable(this, '${a.id}','subtitle',${i})"
+               data-iter="${a.selectedTitleIteration}" data-idx="${i}" data-field="subtitle"
+          >${escHtml(t.subtitle || '')}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  const imgIters = a.imageIterations || [];
+  const curImg = imgIters[a.selectedImageIteration];
+  updateIterNav('img', a.selectedImageIteration, imgIters.length);
+
+  const preview = document.getElementById('image-preview');
+  const promptText = document.getElementById('image-prompt-text');
+  if (curImg) {
+    preview.innerHTML = `<img src="${curImg.data}" alt="생성 이미지">`;
+    promptText.textContent = curImg.prompt || '—';
+  } else {
+    preview.innerHTML = `<div id="image-placeholder" style="color:var(--text3);font-size:11px;text-align:center;">${a.status==='generating'?'생성 중...':'이미지 없음'}</div>`;
+    promptText.textContent = '—';
+  }
+
+  const bodyIters = a.bodyIterations || [];
+  const curBody = bodyIters[a.selectedBodyIteration] || '';
+  updateIterNav('body', a.selectedBodyIteration, bodyIters.length);
+
+  const bodyEl = document.getElementById('body-content');
+  bodyEl.contentEditable = 'false';
+  if (a.status !== 'done' && bodyIters.length === 0) {
+    bodyEl.innerHTML = `<div class="working-msg"><span class="spinner"></span> ${statusLabel(a.status)}...</div>`;
+  } else {
+    bodyEl.textContent = curBody;
+    bodyEl.title = '더블클릭하여 편집';
+  }
+}
+
+function updateIterNav(prefix, cur, total) {
+  document.getElementById(`${prefix}-iter-count`).textContent = total === 0 ? '—' : `${cur+1}/${total}`;
+  document.getElementById(`${prefix}-prev`).disabled = cur <= 0 || total === 0;
+  document.getElementById(`${prefix}-next`).disabled = cur >= total - 1 || total === 0;
+}
+
+function selectTitle(idx) {
+  const a = selected(); if (!a) return;
+  a.selectedTitleIndex = idx;
+  renderPanel();
+  autoSave();
+}
+
+// ─── Inline editing ───────────────────────────────────────────────────────────
+function makeEditable(el, id, field, optIdx) {
+  el.contentEditable = 'true';
+  el.focus();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+
+  const save = () => {
+    el.contentEditable = 'false';
+    const a = getArticle(id); if (!a) return;
+    const iter = parseInt(el.dataset.iter);
+    if (field === 'title') a.titleIterations[iter][optIdx].title = el.textContent;
+    if (field === 'subtitle') a.titleIterations[iter][optIdx].subtitle = el.textContent;
+    autoSave();
+  };
+  el.addEventListener('blur', save, { once: true });
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); el.blur(); } });
+}
+
+function enableBodyEdit() {
+  const a = selected(); if (!a) return;
+  const el = document.getElementById('body-content');
+  if (el.contentEditable === 'true') return;
+  el.contentEditable = 'true';
+  el.focus();
+  el.addEventListener('blur', () => {
+    el.contentEditable = 'false';
+    a.bodyIterations[a.selectedBodyIteration] = el.textContent;
+    autoSave();
+  }, { once: true });
+}
+
+// ─── Sidebar collapse ─────────────────────────────────────────────────────────
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+  document.getElementById('sidebar').classList.toggle('collapsed', sidebarCollapsed);
+  document.getElementById('sidebar-toggle-btn').textContent = sidebarCollapsed ? '▶' : '◀';
+}
+
+// ─── Download ─────────────────────────────────────────────────────────────────
+function articleToText(a) {
+  const sel = a.titleIterations?.[a.selectedTitleIteration]?.[a.selectedTitleIndex];
+  return [sel?.title||'', sel?.subtitle||'', '', a.bodyIterations?.[a.selectedBodyIteration]||''].join('\n');
+}
+
+function safeFileName(str) {
+  return (str||'article').replace(/[^가-힣\w]/g,'_').slice(0,50);
+}
+
+function downloadSingle() {
+  const a = selected(); if (!a) return;
+  const sel = a.titleIterations?.[a.selectedTitleIteration]?.[a.selectedTitleIndex];
+  const name = safeFileName(sel?.title || a.domain);
+  const idx = articles.indexOf(a);
+  const baseName = `${String(idx+1).padStart(2,'0')}_${name}`;
+  triggerDownload(articleToText(a), `${baseName}.txt`, 'text/plain;charset=utf-8');
+  const img = a.imageIterations?.[a.selectedImageIteration]?.data;
+  if (img) triggerDownloadDataURL(img, `${baseName}.jpg`);
+}
+
+async function downloadAll() {
+  if (!articles.length) return alert('다운로드할 기사가 없습니다');
+  const zip = new JSZip();
+  articles.forEach((a, i) => {
+    const sel = a.titleIterations?.[a.selectedTitleIteration]?.[a.selectedTitleIndex];
+    const num = String(i+1).padStart(2,'0');
+    const name = safeFileName(sel?.title || a.domain);
+    const baseName = `${num}_${name}`;
+    zip.file(`${baseName}.txt`, articleToText(a));
+    const img = a.imageIterations?.[a.selectedImageIteration]?.data;
+    if (img) {
+      const b64 = img.replace(/^data:image\/\w+;base64,/, '');
+      zip.file(`${baseName}.jpg`, b64, { base64: true });
+    }
+  });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  triggerDownload(blob, `뉴스번역_${dateStr}.zip`, 'application/zip');
+}
+
+function triggerDownload(content, filename, type) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function triggerDownloadDataURL(dataUrl, filename) {
+  const a = document.createElement('a');
+  a.href = dataUrl; a.download = filename; a.click();
+}
+
+// ─── Auto-save ────────────────────────────────────────────────────────────────
+function autoSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveArticlesLocal();
+    const s = document.getElementById('save-status');
+    s.classList.add('show');
+    setTimeout(() => s.classList.remove('show'), 2000);
+  }, 1000);
+}
+
+// ─── Settings UI ──────────────────────────────────────────────────────────────
+const MODEL_OPTS = {
+  gemini: GEMINI_MODELS,
+  openai: OPENAI_TEXT_MODELS,
+  'openai-image': OPENAI_IMAGE_MODELS,
+  'gemini-image': GEMINI_IMAGE_MODELS,
+};
+
+function openSettings() {
+  document.getElementById('key-gemini').value = settings.apiKeys?.gemini || '';
+  document.getElementById('key-openai').value = settings.apiKeys?.openai || '';
+
+  ['trans','titles','image'].forEach(k => {
+    const taskKey = k === 'trans' ? 'translation' : k;
+    const r = settings.aiRouting?.[taskKey] || {};
+    const provSel = document.getElementById(`route-${k}-provider`);
+    provSel.value = r.provider || (k === 'image' ? 'openai' : 'gemini');
+    updateModelOptions(k);
+    document.getElementById(`route-${k}-model`).value = r.model || '';
+  });
+
+  document.getElementById('prompt-translation-text').value = settings.prompts?.translation || '';
+  document.getElementById('prompt-titles-text').value = settings.prompts?.titles || '';
+  document.getElementById('prompt-image-text').value = settings.prompts?.image || '';
+
+  const toggle = document.getElementById('auto-load-toggle');
+  toggle.className = 'toggle ' + (settings.autoLoadToday ? 'on' : 'off');
+
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function updateModelOptions(k) {
+  const taskKey = k === 'trans' ? 'translation' : k;
+  const provider = document.getElementById(`route-${k}-provider`).value;
+  const modelSel = document.getElementById(`route-${k}-model`);
+  const isImage = k === 'image';
+  const models = isImage
+    ? (provider === 'openai' ? OPENAI_IMAGE_MODELS : GEMINI_IMAGE_MODELS)
+    : (provider === 'openai' ? OPENAI_TEXT_MODELS : GEMINI_MODELS);
+  const cur = settings.aiRouting?.[taskKey]?.model || models[0];
+  modelSel.innerHTML = models.map(m => `<option value="${m}" ${m===cur?'selected':''}>${m}</option>`).join('');
+}
+
+function showSettingsTab(tab) {
+  document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function showPromptTab(key) {
+  ['translation','titles','image'].forEach(k => {
+    document.getElementById(`prompt-${k}`).style.display = k === key ? 'block' : 'none';
+  });
+  document.querySelectorAll('.prompt-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function toggleKey(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+function toggleAutoLoad() {
+  const t = document.getElementById('auto-load-toggle');
+  t.className = 'toggle ' + (t.classList.contains('on') ? 'off' : 'on');
+}
+
+function saveSettings() {
+  settings.apiKeys = {
+    gemini: document.getElementById('key-gemini').value,
+    openai: document.getElementById('key-openai').value,
+  };
+  settings.aiRouting = {
+    translation: { provider: document.getElementById('route-trans-provider').value, model: document.getElementById('route-trans-model').value },
+    titles:      { provider: document.getElementById('route-titles-provider').value, model: document.getElementById('route-titles-model').value },
+    image:       { provider: document.getElementById('route-image-provider').value, model: document.getElementById('route-image-model').value },
+  };
+  settings.prompts = {
+    translation: document.getElementById('prompt-translation-text').value,
+    titles:      document.getElementById('prompt-titles-text').value,
+    image:       document.getElementById('prompt-image-text').value,
+  };
+  settings.autoLoadToday = document.getElementById('auto-load-toggle').classList.contains('on');
+  persistSettings(settings);
+  hideBanner();
+  closeSettings();
+}
+
+function resetPrompts() {
+  if (!confirm('프롬프트를 기본값으로 초기화할까요?')) return;
+  document.getElementById('prompt-translation-text').value = DEFAULT_SETTINGS.prompts.translation;
+  document.getElementById('prompt-titles-text').value = DEFAULT_SETTINGS.prompts.titles;
+  document.getElementById('prompt-image-text').value = DEFAULT_SETTINGS.prompts.image;
+}
+
+function clearTodayData() {
+  if (!confirm('오늘 저장된 기사를 모두 삭제할까요?')) return;
+  localStorage.removeItem(todayKey());
+  articles = [];
+  selectedId = null;
+  renderSidebar();
+  renderPanel();
+  closeSettings();
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function getArticle(id) { return articles.find(a => a.id === id); }
+function selected() { return getArticle(selectedId); }
+function setStatus(id, status, err) { const a = getArticle(id); if (a) { a.status = status; if (err) a.error = err; } }
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function statusLabel(s) {
+  return { pending:'대기 중', scraping:'스크래핑 중', translating:'번역 중', generating:'생성 중', done:'완료', error:'오류' }[s] || s;
+}
+function statusClass(s) {
+  return { done:'done', error:'error', pending:'pending' }[s] || 'working';
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
