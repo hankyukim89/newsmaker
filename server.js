@@ -15,8 +15,8 @@ const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const DEFAULT_SETTINGS = {
   apiKeys: { gemini: '', openai: '', anthropic: '' },
   aiRouting: {
-    translation: { provider: 'gemini', model: 'gemini-3.5-flash' },
-    titles:      { provider: 'gemini', model: 'gemini-3.5-flash' },
+    translation: { provider: 'gemini', model: 'gemini-2.5-flash' },
+    titles:      { provider: 'gemini', model: 'gemini-2.5-flash' },
     image:       { provider: 'openai', model: 'gpt-image-2-2026-04-21', imageSize: '1536x1024' }
   },
   prompts: {

@@ -495,7 +495,7 @@ let saveTimer = null;
 let splitViewEnabled = false;
 let _displayedImageData = null; // always tracks exactly what's shown in the preview
 
-const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-preview-05-20', 'gemini-2.5-pro-preview-05-06'];
+const GEMINI_MODELS = ['gemini-2.5-flash'];
 const OPENAI_TEXT_MODELS = ['gpt-5.4-2026-03-05', 'gpt-4o', 'gpt-4o-mini'];
 const OPENAI_IMAGE_MODELS = ['gpt-image-2-2026-04-21', 'dall-e-3', 'dall-e-2'];
 const GEMINI_IMAGE_MODELS = ['gemini-3.1-flash-image', 'gemini-3-pro-image'];
@@ -572,6 +572,10 @@ function updateTotalCost() {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 async function init() {
   settings = await fetch('/api/settings').then(r => r.json());
+  // Restore API keys from localStorage if server doesn't have them
+  if (!settings.apiKeys) settings.apiKeys = {};
+  if (!settings.apiKeys.gemini)  settings.apiKeys.gemini  = localStorage.getItem('apiKey_gemini')  || '';
+  if (!settings.apiKeys.openai)  settings.apiKeys.openai  = localStorage.getItem('apiKey_openai')  || '';
   if (settings.autoLoadToday) {
     const today = await fetch('/api/load-today').then(r => r.json());
     if (today.articles && today.articles.length > 0) {
@@ -1298,6 +1302,8 @@ async function saveSettings() {
   settings.saveFolder = document.getElementById('save-folder').value;
   settings.autoLoadToday = document.getElementById('auto-load-toggle').classList.contains('on');
 
+  localStorage.setItem('apiKey_gemini', settings.apiKeys.gemini || '');
+  localStorage.setItem('apiKey_openai', settings.apiKeys.openai || '');
   await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
   closeSettings();
 }
@@ -1324,14 +1330,4 @@ function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function escAttr(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function statusLabel(s) {
-  return { pending:'대기 중', scraping:'스크래핑 중', translating:'번역 중', generating:'생성 중', done:'완료', error:'오류' }[s] || s;
-}
-function statusClass(s) {
-  return { done:'done', error:'error', pending:'pending' }[s] || 'working';
-}
-
-// ─── Boot ─────────────────────────────────────────────────────────────────────
-init();
-</script>
-</body>
-</html>
+  return { pending:'대기 중', scraping:'스크래핑 중', translating:'번역 중', generating:'생성 중', done:'완료', error:'
