@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>뉴스 번역기</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://unpkg.com/@mozilla/readability@0.5.0/Readability.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -24,11 +23,11 @@
   /* ── Top chrome ── */
   #chrome {
     background: var(--bg2); border-bottom: 0.5px solid var(--border);
-    padding: 0 14px; height: 44px; display: flex; align-items: center; gap: 10px;
+    padding: 0 16px; height: 52px; display: flex; align-items: center; gap: 10px;
     flex-shrink: 0;
   }
-  #chrome .title { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; }
-  #save-status { font-size: 11px; color: var(--green); background: var(--green-bg); border: 0.5px solid var(--green-border); border-radius: 6px; padding: 3px 9px; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.4s; }
+  #chrome .title { font-size: 16px; font-weight: 600; color: var(--text); flex: 1; }
+  #save-status { font-size: 13px; color: var(--green); background: var(--green-bg); border: 0.5px solid var(--green-border); border-radius: 6px; padding: 4px 10px; display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity 0.4s; }
   #save-status.show { opacity: 1; }
 
   /* ── Main layout ── */
@@ -36,7 +35,7 @@
 
   /* ── Sidebar ── */
   #sidebar {
-    width: 220px; flex-shrink: 0; background: var(--bg2);
+    width: 240px; flex-shrink: 0; background: var(--bg2);
     border-right: 0.5px solid var(--border);
     display: flex; flex-direction: column; transition: width 0.2s ease; overflow: hidden;
   }
@@ -51,19 +50,19 @@
 
   #sidebar-inner { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
   #url-form { padding: 10px; border-bottom: 0.5px solid var(--border); display: flex; gap: 6px; }
-  #url-input { flex: 1; height: 28px; border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 0 8px; font-size: 11px; font-family: var(--font); background: var(--bg); color: var(--text); outline: none; }
+  #url-input { flex: 1; height: 34px; border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 0 10px; font-size: 14px; font-family: var(--font); background: var(--bg); color: var(--text); outline: none; }
   #url-input:focus { border-color: var(--blue); }
   #url-input::placeholder { color: var(--text3); }
-  #url-add-btn { height: 28px; padding: 0 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); font-size: 11px; cursor: pointer; color: var(--text2); font-family: var(--font); }
+  #url-add-btn { height: 34px; padding: 0 12px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); font-size: 14px; cursor: pointer; color: var(--text2); font-family: var(--font); }
   #url-add-btn:hover { background: var(--bg3); }
 
   #article-list-header { padding: 6px 10px 4px; display: flex; justify-content: space-between; align-items: center; }
-  #article-list-header span { font-size: 9px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; }
+  #article-list-header span { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; }
   #article-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; display: flex; flex-direction: column; gap: 5px; }
 
   .article-item {
     border-radius: var(--radius); border: 0.5px solid var(--border); background: var(--bg);
-    padding: 7px 8px; cursor: pointer; display: flex; gap: 6px; align-items: flex-start;
+    padding: 10px 10px; cursor: pointer; display: flex; gap: 6px; align-items: flex-start;
     transition: border-color 0.15s; position: relative; user-select: none;
   }
   .article-item:hover { border-color: var(--border2); }
@@ -76,14 +75,14 @@
   .drag-handle span { display: block; width: 12px; height: 1.5px; border-radius: 1px; background: var(--text2); }
   .article-item-body { flex: 1; min-width: 0; }
   .article-item-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-  .article-item-domain { font-size: 10px; color: var(--text2); }
-  .article-item-num { font-size: 9px; color: var(--text3); }
-  .status-badge { border-radius: 4px; padding: 1px 6px; font-size: 9px; font-weight: 600; }
+  .article-item-domain { font-size: 13px; color: var(--text2); }
+  .article-item-num { font-size: 11px; color: var(--text3); }
+  .status-badge { border-radius: 4px; padding: 2px 7px; font-size: 11px; font-weight: 600; }
   .status-badge.done { background: var(--green-bg); color: var(--green); }
   .status-badge.working { background: var(--amber-bg); color: var(--amber); }
   .status-badge.pending { background: var(--bg3); color: var(--text3); }
   .status-badge.error { background: var(--red-bg); color: var(--red); }
-  .article-item-title { font-size: 10px; color: var(--text); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .article-item-title { font-size: 14px; color: var(--text); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .article-delete-btn { flex-shrink: 0; background: none; border: none; cursor: pointer; color: var(--text3); padding: 2px; border-radius: 4px; font-size: 12px; opacity: 0; transition: opacity 0.15s; line-height: 1; }
   .article-item:hover .article-delete-btn { opacity: 1; }
   .article-delete-btn:hover { color: var(--red); background: var(--red-bg); }
@@ -91,71 +90,80 @@
   /* ── Right panel ── */
   #panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
   #panel-topbar { padding: 8px 14px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; background: var(--bg); }
-  #panel-source { font-size: 11px; color: var(--text2); flex: 1; }
-  .panel-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 13px; }
+  #panel-source { font-size: 14px; color: var(--text2); flex: 1; }
+  .panel-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 17px; }
 
   #panel-content { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
 
   /* ── Section boxes ── */
   .section-box { border: 0.5px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .section-header { padding: 7px 10px; background: var(--bg2); border-bottom: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-  .section-label { font-size: 10px; font-weight: 600; color: var(--text2); }
+  .section-label { font-size: 14px; font-weight: 600; color: var(--text2); }
   .section-label .hint { font-weight: 400; opacity: 0.6; }
   .section-controls { display: flex; gap: 5px; align-items: center; }
 
   /* Iteration nav */
   .iter-nav { display: flex; align-items: center; gap: 1px; border: 0.5px solid var(--border); border-radius: 6px; overflow: hidden; background: var(--bg); }
-  .iter-btn { border: none; background: none; cursor: pointer; color: var(--text3); padding: 3px 7px; font-size: 12px; line-height: 1; }
+  .iter-btn { border: none; background: none; cursor: pointer; color: var(--text3); padding: 4px 10px; font-size: 16px; line-height: 1; }
   .iter-btn:hover { background: var(--bg2); color: var(--text); }
   .iter-btn:disabled { opacity: 0.3; cursor: default; }
-  .iter-count { font-size: 10px; color: var(--text2); padding: 0 4px; min-width: 28px; text-align: center; border-left: 0.5px solid var(--border); border-right: 0.5px solid var(--border); }
+  .iter-count { font-size: 13px; color: var(--text2); padding: 0 6px; min-width: 34px; text-align: center; border-left: 0.5px solid var(--border); border-right: 0.5px solid var(--border); }
 
   /* Small button */
-  .btn-sm { border: 0.5px solid var(--border2); border-radius: 6px; background: var(--bg); padding: 3px 8px; font-size: 11px; color: var(--text2); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-family: var(--font); }
+  .btn-sm { border: 0.5px solid var(--border2); border-radius: 6px; background: var(--bg); padding: 5px 12px; font-size: 13px; color: var(--text2); cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-family: var(--font); white-space: nowrap; }
   .btn-sm:hover { background: var(--bg2); }
   .btn-sm.primary { background: var(--blue-bg); color: var(--blue); border-color: var(--blue-border); }
   .btn-sm.primary:hover { filter: brightness(0.95); }
-  .btn { border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); padding: 5px 12px; font-size: 12px; color: var(--text2); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-family: var(--font); }
+  .btn { border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); padding: 7px 16px; font-size: 14px; color: var(--text2); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-family: var(--font); }
   .btn:hover { background: var(--bg2); }
-  .btn.primary { background: var(--blue-bg); color: var(--blue); border-color: var(--blue-border); font-weight: 500; }
 
   /* ── Titles section ── */
-  .title-option { padding: 8px 10px; border-bottom: 0.5px solid var(--border); display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
-  .title-option:last-child { border-bottom: none; }
-  .title-option:hover { background: var(--bg2); }
-  .title-option.selected { background: var(--blue-bg); }
-  .title-radio { width: 14px; height: 14px; border-radius: 50%; border: 0.5px solid var(--border2); flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; }
-  .title-option.selected .title-radio { border: 2px solid var(--blue); background: var(--blue-bg); }
-  .title-option.selected .title-radio::after { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--blue); }
-  .title-texts { flex: 1; min-width: 0; }
-  .title-main { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 3px; outline: none; }
-  .title-sub { font-size: 11px; color: var(--text2); outline: none; }
-  .title-main[contenteditable="true"]:focus,
-  .title-sub[contenteditable="true"]:focus { background: rgba(255,255,255,0.7); border-radius: 3px; padding: 1px 3px; }
+  .title-pair { padding: 10px 14px; border-bottom: 0.5px solid var(--border); display: flex; flex-direction: column; gap: 7px; cursor: pointer; transition: background 0.1s; }
+  .title-pair:last-child { border-bottom: none; }
+  .title-pair:hover { background: var(--bg2); }
+  .title-pair.active { border-left: 3px solid var(--blue); background: var(--blue-bg); padding-left: 11px; }
+  .title-pair-num { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; }
+  .title-pair.active .title-pair-num { color: var(--blue); }
+  .title-input { border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 7px 10px; font-family: var(--font); color: var(--text); background: var(--bg); outline: none; width: 100%; transition: border-color 0.15s; }
+  .title-input:focus { border-color: var(--blue); background: #fff; }
+  .title-main-input { font-size: 16px; font-weight: 600; }
+  .title-sub-input { font-size: 14px; color: var(--text2); }
 
   /* ── Image section ── */
   #image-wrap { display: flex; gap: 0; }
-  #image-preview { width: 120px; height: 90px; flex-shrink: 0; background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  #image-preview img { width: 100%; height: 100%; object-fit: cover; }
+  #image-preview { width: 52%; height: 100%; flex-shrink: 0; background: var(--bg2); border-right: 0.5px solid var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #image-preview img { width: 100%; height: 100%; object-fit: contain; }
   #image-placeholder { color: var(--text3); font-size: 11px; text-align: center; }
   #image-info { flex: 1; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
-  #image-prompt-label { font-size: 9px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
-  #image-prompt-text { font-size: 11px; color: var(--text2); line-height: 1.5; }
+  #image-prompt-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; }
+  #image-prompt-text { font-size: 14px; color: var(--text2); line-height: 1.55; }
 
   /* ── Body section ── */
   #body-content {
-    padding: 12px 14px; font-size: 13px; line-height: 1.8; color: var(--text);
-    min-height: 200px; outline: none; white-space: pre-wrap;
+    padding: 16px 18px; font-size: 18px; line-height: 1.9; color: var(--text);
+    flex: 1; overflow-y: auto; outline: none; white-space: pre-wrap; min-height: 0;
   }
   #body-content:focus { background: #fafaf9; }
   #body-content[contenteditable="true"] { cursor: text; }
   .body-placeholder { color: var(--text3); font-style: italic; }
-  .working-msg { padding: 16px; font-size: 12px; color: var(--text3); text-align: center; }
+  .working-msg { padding: 20px; font-size: 15px; color: var(--text3); text-align: center; }
+
+  /* ── Split view ── */
+  #split-view { display: none; flex: 1; overflow: hidden; min-height: 0; }
+  .split-pane { flex: 1; overflow-y: auto; padding: 16px 18px; font-size: 16px; line-height: 1.85; color: var(--text); }
+  .split-pane + .split-pane { border-left: 0.5px solid var(--border); }
+  .split-label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+
+  /* ── Custom prompt row ── */
+  .custom-prompt-row { padding: 8px 12px; border-top: 0.5px solid var(--border); display: flex; gap: 8px; align-items: center; flex-shrink: 0; background: var(--bg2); }
+  .custom-prompt-row input { flex: 1; height: 34px; border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 0 10px; font-size: 13px; font-family: var(--font); color: var(--text); background: var(--bg); outline: none; }
+  .custom-prompt-row input:focus { border-color: var(--blue); }
+  .custom-prompt-row input::placeholder { color: var(--text3); }
 
   /* ── Settings modal ── */
   #settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; display: none; align-items: center; justify-content: center; }
   #settings-overlay.open { display: flex; }
-  #settings-modal { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border); width: 640px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+  #settings-modal { background: var(--bg); border-radius: var(--radius-lg); border: 0.5px solid var(--border); width: 860px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
   #settings-header { padding: 12px 16px; background: var(--bg2); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   #settings-header h2 { font-size: 14px; font-weight: 600; }
   #settings-close { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; }
@@ -205,16 +213,27 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
 
-  /* ── First-run banner ── */
-  #setup-banner { display: none; position: fixed; bottom: 16px; right: 16px; background: var(--bg); border: 0.5px solid var(--blue-border); border-radius: var(--radius-lg); padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 50; max-width: 300px; }
-  #setup-banner.show { display: block; }
-  #setup-banner p { font-size: 12px; color: var(--text2); line-height: 1.5; margin-bottom: 10px; }
-  #setup-banner strong { color: var(--text); }
-
   /* scrollbar */
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* ── Cost badge ── */
+  .article-cost { font-size: 12px; color: var(--text3); margin-top: 3px; }
+  #total-cost { font-size: 13px; color: var(--text2); background: var(--bg3); border: 0.5px solid var(--border); border-radius: 6px; padding: 4px 10px; white-space: nowrap; }
+
+  /* ── Lightbox ── */
+  #lightbox {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 200;
+    display: none; align-items: center; justify-content: center; cursor: zoom-out;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox-img {
+    max-width: 90vw; max-height: 90vh; object-fit: contain;
+    border-radius: 6px; box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+    cursor: default;
+  }
+  #image-preview img { cursor: zoom-in; }
 </style>
 </head>
 <body>
@@ -223,7 +242,8 @@
 <div id="chrome">
   <button id="sidebar-toggle-btn" onclick="toggleSidebar()" title="사이드바 접기/펼치기" style="background:none;border:0.5px solid var(--border);border-radius:var(--radius);width:30px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:14px;flex-shrink:0;">◀</button>
   <span class="title">뉴스 번역기</span>
-  <div id="save-status">✓ 저장됨</div>
+  <div id="save-status">✓ 자동 저장됨</div>
+  <span id="total-cost" style="display:none;"></span>
   <button class="btn" onclick="openSettings()">⚙ 설정</button>
   <button class="btn primary" onclick="downloadAll()">↓ 전체 다운로드</button>
 </div>
@@ -250,55 +270,76 @@
   <div id="panel">
     <div id="panel-topbar" style="display:none;">
       <span id="panel-source"></span>
+      <a id="panel-url" href="#" target="_blank" style="font-size:12px;color:var(--blue);text-decoration:none;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title=""></a>
       <button class="btn-sm" onclick="regenerateAll()">↺ 전체 재생성</button>
       <button class="btn-sm" onclick="downloadSingle()">↓ .txt</button>
     </div>
     <div id="panel-empty" class="panel-empty">← URL을 추가하여 시작하세요</div>
     <div id="panel-content" style="display:none;">
 
-      <!-- Titles -->
-      <div class="section-box">
-        <div class="section-header">
-          <span class="section-label">제목 · 소제목 <span class="hint">(더블클릭 편집)</span></span>
-          <div class="section-controls">
-            <div class="iter-nav">
-              <button class="iter-btn" id="title-prev" onclick="stepTitleIter(-1)">‹</button>
-              <span class="iter-count" id="title-iter-count">1/1</span>
-              <button class="iter-btn" id="title-next" onclick="stepTitleIter(1)">›</button>
-            </div>
-            <button class="btn-sm" onclick="regenerateTitles()">↺ 재생성</button>
-          </div>
-        </div>
-        <div id="titles-body"></div>
-      </div>
+      <!-- Titles + Image (side by side) -->
+      <div id="top-row" style="display:flex; border:0.5px solid var(--border); border-radius:var(--radius); overflow:hidden; flex-shrink:0; min-height:380px; resize:vertical;">
 
-      <!-- Image -->
-      <div class="section-box">
-        <div class="section-header">
-          <span class="section-label">생성 이미지</span>
-          <div class="section-controls">
-            <div class="iter-nav">
-              <button class="iter-btn" id="img-prev" onclick="stepImgIter(-1)">‹</button>
-              <span class="iter-count" id="img-iter-count">1/1</span>
-              <button class="iter-btn" id="img-next" onclick="stepImgIter(1)">›</button>
+        <!-- Left: Titles -->
+        <div style="flex:1; display:flex; flex-direction:column; min-width:0; border-right:0.5px solid var(--border);">
+          <div class="section-header">
+            <span class="section-label">제목 · 소제목</span>
+            <div class="section-controls">
+              <div class="iter-nav">
+                <button class="iter-btn" id="title-prev" onclick="stepTitleIter(-1)">‹</button>
+                <span class="iter-count" id="title-iter-count">1/1</span>
+                <button class="iter-btn" id="title-next" onclick="stepTitleIter(1)">›</button>
+              </div>
+              <button class="btn-sm" onclick="regenerateTitles()">↺ 재생성</button>
             </div>
-            <button class="btn-sm" onclick="regenerateImage()">↺ 재생성</button>
+          </div>
+          <div id="titles-body" style="flex:1; overflow:hidden; display:flex;"></div>
+          <div class="custom-prompt-row">
+            <input type="text" id="titles-custom-prompt" placeholder="추가 지시사항 (예: 더 강렬하게, 의문형으로...)">
+            <button class="btn-sm" onclick="regenerateTitlesCustom()">↺ 재생성</button>
           </div>
         </div>
-        <div id="image-wrap">
-          <div id="image-preview"><div id="image-placeholder">이미지 없음</div></div>
-          <div id="image-info">
-            <div id="image-prompt-label">사용된 프롬프트</div>
-            <div id="image-prompt-text" style="color:var(--text3);font-size:11px;">—</div>
+
+        <!-- Right: Image -->
+        <div style="flex:1; display:flex; flex-direction:column; min-width:0;">
+          <div class="section-header">
+            <span class="section-label">생성 이미지</span>
+            <div class="section-controls">
+              <div class="iter-nav">
+                <button class="iter-btn" id="img-prev" onclick="stepImgIter(-1)">‹</button>
+                <span class="iter-count" id="img-iter-count">1/1</span>
+                <button class="iter-btn" id="img-next" onclick="stepImgIter(1)">›</button>
+              </div>
+              <button class="btn-sm" onclick="regenerateImage()">↺ 재생성</button>
+            </div>
+          </div>
+          <div id="image-wrap" style="flex:1; overflow:hidden;">
+            <div id="image-preview"><div id="image-placeholder">이미지 없음</div></div>
+            <div id="image-info" style="flex:1; overflow-y:auto; padding:10px 12px; display:flex; flex-direction:column; gap:8px;">
+              <div>
+                <div id="image-prompt-label" style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;">AI 생성 프롬프트</div>
+                <div id="image-prompt-text" style="font-size:13px;color:var(--text2);line-height:1.55;">—</div>
+              </div>
+              <div id="image-full-prompt-wrap" style="display:none;">
+                <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">최종 전체 프롬프트</div>
+                <div id="image-full-prompt" style="font-size:12px;color:var(--text3);line-height:1.45;"></div>
+              </div>
+            </div>
+          </div>
+          <div class="custom-prompt-row">
+            <input type="text" id="image-custom-prompt" placeholder="추가 이미지 지시사항...">
+            <button class="btn-sm" onclick="regenerateImageCustom()">↺ 이미지 생성</button>
           </div>
         </div>
+
       </div>
 
       <!-- Body -->
-      <div class="section-box" style="flex:1;">
-        <div class="section-header">
-          <span class="section-label">번역 본문 <span class="hint">(더블클릭 편집)</span></span>
+      <div class="section-box" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+        <div class="section-header" style="flex-shrink:0;">
+          <span class="section-label">번역 본문</span>
           <div class="section-controls">
+            <button class="btn-sm" id="split-toggle-btn" onclick="toggleSplitView()">⇔ 원문 비교</button>
             <div class="iter-nav">
               <button class="iter-btn" id="body-prev" onclick="stepBodyIter(-1)">‹</button>
               <span class="iter-count" id="body-iter-count">1/1</span>
@@ -307,7 +348,15 @@
             <button class="btn-sm" onclick="regenerateBody()">↺ 재생성</button>
           </div>
         </div>
-        <div id="body-content" ondblclick="enableBodyEdit()" title="더블클릭하여 편집"></div>
+        <div id="body-content" onclick="enableBodyEdit()"></div>
+        <div id="split-view">
+          <div class="split-pane" id="split-original"></div>
+          <div class="split-pane" id="split-translated"></div>
+        </div>
+        <div class="custom-prompt-row">
+          <input type="text" id="body-custom-prompt" placeholder="번역 추가 지시사항 (예: 더 공식적인 문체로, 첫 문단을 강조해줘...)">
+          <button class="btn-sm" onclick="regenerateBodyCustom()">↺ 재번역</button>
+        </div>
       </div>
 
     </div>
@@ -325,16 +374,13 @@
       <div id="settings-nav">
         <div class="settings-tab active" onclick="showSettingsTab('ai')">🤖 AI 모델</div>
         <div class="settings-tab" onclick="showSettingsTab('prompts')">📝 프롬프트</div>
-        <div class="settings-tab" onclick="showSettingsTab('save')">💾 저장</div>
+        <div class="settings-tab" onclick="showSettingsTab('save')">📁 저장 위치</div>
       </div>
       <div id="settings-content">
 
         <!-- AI tab -->
         <div class="settings-section active" id="tab-ai">
           <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;">API 키</div>
-          <div style="font-size:11px;color:var(--amber);background:var(--amber-bg);border:0.5px solid var(--amber-border);border-radius:var(--radius);padding:8px 10px;margin-bottom:12px;line-height:1.5;">
-            API 키는 이 기기의 브라우저에만 저장됩니다. 서버로 전송되지 않습니다.
-          </div>
           <div class="field-group">
             <label class="field-label">Google Gemini API Key</label>
             <div class="field-row">
@@ -379,7 +425,8 @@
                 <option value="openai">OpenAI (GPT Image)</option>
                 <option value="gemini">Gemini Image</option>
               </select>
-              <select id="route-image-model"></select>
+              <select id="route-image-model" onchange="updateImageSizeOptions()"></select>
+              <select id="route-image-size" style="min-width:260px;"></select>
             </div>
           </div>
         </div>
@@ -407,19 +454,19 @@
 
         <!-- Save tab -->
         <div class="settings-section" id="tab-save">
-          <div style="padding:10px 12px;background:var(--blue-bg);border:0.5px solid var(--blue-border);border-radius:var(--radius);font-size:12px;color:var(--blue);line-height:1.6;margin-bottom:14px;">
-            <strong>브라우저 버전 저장 방식</strong><br>
-            기사 데이터는 브라우저 로컬 스토리지에 날짜별로 자동 저장됩니다. 파일로 내보내려면 <strong>전체 다운로드</strong> 버튼을 사용하세요.
+          <div class="field-group">
+            <label class="field-label">기본 저장 폴더</label>
+            <div class="field-row">
+              <input type="text" id="save-folder" placeholder="저장 경로...">
+            </div>
+            <div id="save-folder-preview" style="font-size:10px;color:var(--text3);margin-top:5px;"></div>
           </div>
           <div class="toggle-row">
             <div>
-              <strong style="font-size:12px;">시작 시 오늘 기사 자동 로드</strong>
-              <div style="font-size:10px;color:var(--text3);margin-top:2px;">앱 시작 시 오늘 저장된 기사를 자동으로 불러옴</div>
+              <strong style="font-size:12px;">시작 시 오늘 폴더 자동 로드</strong>
+              <div style="font-size:10px;color:var(--text3);margin-top:2px;">앱 실행 시 오늘 날짜 폴더를 자동으로 불러옴</div>
             </div>
             <button class="toggle on" id="auto-load-toggle" onclick="toggleAutoLoad()"></button>
-          </div>
-          <div style="margin-top:14px;">
-            <button class="btn" onclick="clearTodayData()" style="color:var(--red);border-color:var(--red-border);">오늘 데이터 초기화</button>
           </div>
         </div>
 
@@ -432,102 +479,119 @@
   </div>
 </div>
 
-<!-- First-run banner -->
-<div id="setup-banner">
-  <p><strong>API 키를 설정해 주세요</strong><br>번역 및 이미지 생성을 시작하려면 Gemini 또는 OpenAI API 키가 필요합니다.</p>
-  <div style="display:flex;gap:8px;">
-    <button class="btn primary" onclick="openSettings();hideBanner()">설정 열기</button>
-    <button class="btn" onclick="hideBanner()">나중에</button>
-  </div>
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <img id="lightbox-img" alt="전체 이미지" onclick="event.stopPropagation()">
 </div>
 
 <script>
-// ─── Constants ────────────────────────────────────────────────────────────────
-const GEMINI_MODELS       = ['gemini-3.5-flash','gemini-2.0-flash','gemini-2.5-flash-preview-05-20','gemini-2.5-pro-preview-05-06'];
-const OPENAI_TEXT_MODELS  = ['gpt-5.4-2026-03-05','gpt-4o','gpt-4o-mini'];
-const OPENAI_IMAGE_MODELS = ['gpt-image-2-2026-04-21','dall-e-3','dall-e-2'];
-const GEMINI_IMAGE_MODELS = ['gemini-3.1-flash-image','gemini-3-pro-image'];
-
-const DEFAULT_SETTINGS = {
-  apiKeys: { gemini: '', openai: '' },
-  aiRouting: {
-    translation: { provider: 'gemini', model: 'gemini-3.5-flash' },
-    titles:      { provider: 'gemini', model: 'gemini-3.5-flash' },
-    image:       { provider: 'openai', model: 'gpt-image-2-2026-04-21' }
-  },
-  prompts: {
-    translation: `당신은 전문 한국어 신문 기자 겸 번역가입니다.\n아래 영어 뉴스 기사를 한국어 신문 기사체로 번역하세요.\n- 격식체(합쇼체)를 사용하세요\n- 객관적인 보도 문체를 유지하세요\n- 모든 핵심 사실, 인용구, 데이터를 보존하세요\n- 강력한 첫 문단(리드)으로 시작하세요\n- 번역된 기사 본문만 출력하고 설명은 생략하세요`,
-    titles: `당신은 한국 신문 편집장입니다. 아래 한국어 뉴스 기사를 바탕으로 제목과 소제목 쌍을 정확히 3개 생성하세요.\n다음 JSON 형식으로만 응답하세요 (다른 텍스트 없이):\n[\n  {"title": "제목1", "subtitle": "소제목1"},\n  {"title": "제목2", "subtitle": "소제목2"},\n  {"title": "제목3", "subtitle": "소제목3"}\n]\n제목: 20자 이내, 임팩트 있게. 소제목: 40자 이내, 정보 전달 위주.`,
-    image: `Create a professional editorial news photograph for a Korean newspaper article about: {summary}. Photorealistic, editorial style, neutral and objective, suitable for front page newspaper use. No text or watermarks.`
-  },
-  autoLoadToday: true
-};
-
 // ─── State ────────────────────────────────────────────────────────────────────
-let articles = [];
+let articles = [];      // ordered list
 let selectedId = null;
 let settings = {};
 let sidebarCollapsed = false;
 let dragSrcId = null;
 let saveTimer = null;
+let splitViewEnabled = false;
+let _displayedImageData = null; // always tracks exactly what's shown in the preview
 
-// ─── Settings (localStorage) ──────────────────────────────────────────────────
-function loadSettingsLocal() {
-  try {
-    const saved = localStorage.getItem('newsmaker-settings');
-    if (saved) {
-      const s = JSON.parse(saved);
-      return {
-        ...DEFAULT_SETTINGS, ...s,
-        apiKeys:   { ...DEFAULT_SETTINGS.apiKeys,   ...s.apiKeys },
-        aiRouting: { ...DEFAULT_SETTINGS.aiRouting, ...s.aiRouting },
-        prompts:   { ...DEFAULT_SETTINGS.prompts,   ...s.prompts }
-      };
-    }
-  } catch(_) {}
-  return { ...DEFAULT_SETTINGS };
+const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-preview-05-20', 'gemini-2.5-pro-preview-05-06'];
+const OPENAI_TEXT_MODELS = ['gpt-5.4-2026-03-05', 'gpt-4o', 'gpt-4o-mini'];
+const OPENAI_IMAGE_MODELS = ['gpt-image-2-2026-04-21', 'dall-e-3', 'dall-e-2'];
+const GEMINI_IMAGE_MODELS = ['gemini-3.1-flash-image', 'gemini-3-pro-image'];
+
+const IMAGE_SIZES = {
+  'gpt-image-2-2026-04-21': [
+    { v:'1024x1024', l:'1024×1024 — 1:1' },
+    { v:'1536x1024', l:'1536×1024 — 3:2 가로' },
+    { v:'1024x1536', l:'1024×1536 — 2:3 세로' },
+    { v:'auto',      l:'auto' },
+  ],
+  'gpt-image-2': [
+    { v:'1024x1024', l:'1024×1024 — 1:1' },
+    { v:'1536x1024', l:'1536×1024 — 3:2 가로' },
+    { v:'1024x1536', l:'1024×1536 — 2:3 세로' },
+    { v:'auto',      l:'auto' },
+  ],
+  'dall-e-3': [
+    { v:'1024x1024', l:'1024×1024 — 1:1' },
+    { v:'1792x1024', l:'1792×1024 — 16:9 가로' },
+    { v:'1024x1792', l:'1024×1792 — 9:16 세로' },
+  ],
+  'dall-e-2': [
+    { v:'256x256',   l:'256×256' },
+    { v:'512x512',   l:'512×512' },
+    { v:'1024x1024', l:'1024×1024' },
+  ],
+};
+const DEFAULT_IMAGE_SIZES = [
+  { v:'1024x1024', l:'1024×1024 — 1:1' },
+  { v:'1536x1024', l:'1536×1024 — 3:2 가로' },
+  { v:'1024x1536', l:'1024×1536 — 2:3 세로' },
+];
+
+// ─── Pricing (USD per 1M tokens; image = USD per image) ───────────────────────
+const USD_TO_CAD = 1.37;
+const TEXT_PRICE = {
+  'gemini-3.5-flash':               { in: 0.10, out: 0.40 },
+  'gemini-2.0-flash':               { in: 0.10, out: 0.40 },
+  'gemini-2.5-flash-preview-05-20': { in: 0.15, out: 0.60 },
+  'gemini-2.5-pro-preview-05-06':   { in: 1.25, out: 5.00 },
+  'gpt-5.4-2026-03-05':             { in: 2.50, out: 10.00 },
+  'gpt-4o':                         { in: 2.50, out: 10.00 },
+  'gpt-4o-mini':                    { in: 0.15, out: 0.60 },
+};
+const IMG_PRICE = {
+  'gpt-image-2-2026-04-21': 0.04,
+  'gpt-image-2':            0.04,
+  'dall-e-3':               0.04,
+  'dall-e-2':               0.018,
+  'gemini-3.1-flash-image': 0.04,
+  'gemini-3-pro-image':     0.08,
+};
+function calcTextCostCAD(model, inTok, outTok) {
+  const p = TEXT_PRICE[model];
+  if (!p || !inTok) return 0;
+  return ((inTok * p.in + outTok * p.out) / 1_000_000) * USD_TO_CAD;
 }
-
-function persistSettings(s) {
-  localStorage.setItem('newsmaker-settings', JSON.stringify(s));
+function calcImgCostCAD(model) {
+  return (IMG_PRICE[model] || 0.04) * USD_TO_CAD;
 }
-
-// ─── Article storage (localStorage, keyed by date) ────────────────────────────
-function todayKey() {
-  const d = new Date();
-  return `newsmaker-articles-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+function articleCostCAD(a) {
+  const c = a.cost || {};
+  return (c.translation || 0) + (c.titles || 0) + (c.image || 0);
 }
-
-function saveArticlesLocal() {
-  localStorage.setItem(todayKey(), JSON.stringify(articles));
-}
-
-function loadArticlesLocal() {
-  try {
-    const saved = localStorage.getItem(todayKey());
-    return saved ? JSON.parse(saved) : [];
-  } catch(_) { return []; }
+function fmtCAD(n) { return n > 0 ? `CA$${n < 0.0001 ? n.toFixed(6) : n.toFixed(4)}` : ''; }
+function updateTotalCost() {
+  const total = articles.reduce((s, a) => s + articleCostCAD(a), 0);
+  const el = document.getElementById('total-cost');
+  if (total > 0) { el.textContent = `총 CA$${total.toFixed(4)}`; el.style.display = ''; }
+  else el.style.display = 'none';
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-function init() {
-  settings = loadSettingsLocal();
+async function init() {
+  settings = await fetch('/api/settings').then(r => r.json());
   if (settings.autoLoadToday) {
-    const saved = loadArticlesLocal();
-    if (saved.length > 0) {
-      articles = saved;
-      selectedId = articles[0].id;
+    const today = await fetch('/api/load-today').then(r => r.json());
+    if (today.articles && today.articles.length > 0) {
+      articles = today.articles;
+      if (articles.length > 0) selectedId = articles[0].id;
     }
   }
   renderSidebar();
   renderPanel();
-  // Show setup banner if no API keys
-  if (!settings.apiKeys.gemini && !settings.apiKeys.openai) {
-    document.getElementById('setup-banner').classList.add('show');
+
+  // Restore saved top-row height and persist future resizes
+  const topRow = document.getElementById('top-row');
+  if (topRow) {
+    const saved = localStorage.getItem('topRowHeight');
+    if (saved) topRow.style.height = saved;
+    new ResizeObserver(() => {
+      localStorage.setItem('topRowHeight', topRow.offsetHeight + 'px');
+    }).observe(topRow);
   }
 }
-
-function hideBanner() { document.getElementById('setup-banner').classList.remove('show'); }
 
 // ─── URL add ──────────────────────────────────────────────────────────────────
 function addUrl(e) {
@@ -550,6 +614,7 @@ function addUrl(e) {
     selectedTitleIndex: 0,
     imageIterations: [],
     selectedImageIteration: 0,
+    cost: { translation: 0, titles: 0, image: 0 },
   };
 
   articles.push(article);
@@ -566,32 +631,37 @@ async function processArticle(id) {
 
   // 1. Scrape
   setStatus(id, 'scraping'); renderSidebar();
-  const scraped = await apiScrape(a.url);
+  const scraped = await api('/api/scrape', { url: a.url });
   if (scraped.error) { setStatus(id, 'error', scraped.error); renderSidebar(); if (selectedId===id) renderPanel(); return; }
   a.originalText = scraped.content;
   a.scrapedTitle = scraped.title;
 
   // 2. Translate
   setStatus(id, 'translating'); renderSidebar(); if (selectedId===id) renderPanel();
-  const translated = await apiTranslate(a.originalText);
+  const translated = await api('/api/translate', { text: a.originalText });
   if (translated.error) { setStatus(id, 'error', translated.error); renderSidebar(); if (selectedId===id) renderPanel(); return; }
   a.bodyIterations.push(translated.text);
   a.selectedBodyIteration = a.bodyIterations.length - 1;
+  if (!a.cost) a.cost = { translation: 0, titles: 0, image: 0 };
+  a.cost.translation += calcTextCostCAD(translated.model, translated.inputTokens, translated.outputTokens);
 
-  // 3. Titles + Image in parallel
+  // 3. Titles (parallel with image)
   setStatus(id, 'generating'); renderSidebar(); if (selectedId===id) renderPanel();
   const [titlesRes, imageRes] = await Promise.all([
-    apiTitles(translated.text),
-    apiImage((scraped.excerpt || scraped.title || '').slice(0, 300))
+    api('/api/titles', { article: translated.text }),
+    api('/api/image', { summary: (scraped.excerpt || scraped.title || '').slice(0, 300), articleText: a.originalText })
   ]);
 
   if (titlesRes.titles) {
     a.titleIterations.push(titlesRes.titles);
     a.selectedTitleIteration = a.titleIterations.length - 1;
+    a.cost.titles += calcTextCostCAD(titlesRes.model, titlesRes.inputTokens, titlesRes.outputTokens);
   }
   if (imageRes.image) {
-    a.imageIterations.push({ data: imageRes.image, prompt: imageRes.prompt });
+    a.imageIterations.push({ data: imageRes.image, prompt: imageRes.prompt, creativePrompt: imageRes.creativePrompt });
     a.selectedImageIteration = a.imageIterations.length - 1;
+    a.cost.image += calcTextCostCAD(imageRes.promptModel, imageRes.promptInputTokens, imageRes.promptOutputTokens);
+    a.cost.image += calcImgCostCAD(imageRes.model);
   }
 
   setStatus(id, 'done'); renderSidebar(); if (selectedId===id) renderPanel();
@@ -608,11 +678,13 @@ async function regenerateBody() {
   const a = selected(); if (!a || !a.originalText) return;
   const btn = event.target;
   btn.textContent = '…'; btn.disabled = true;
-  const r = await apiTranslate(a.originalText);
+  const r = await api('/api/translate', { text: a.originalText });
   btn.textContent = '↺ 재생성'; btn.disabled = false;
   if (r.error) return alert(r.error);
   a.bodyIterations.push(r.text);
   a.selectedBodyIteration = a.bodyIterations.length - 1;
+  if (!a.cost) a.cost = { translation: 0, titles: 0, image: 0 };
+  a.cost.translation += calcTextCostCAD(r.model, r.inputTokens, r.outputTokens);
   renderPanel(); autoSave();
 }
 
@@ -622,13 +694,15 @@ async function regenerateTitles() {
   if (!body) return;
   const btn = event.target;
   btn.textContent = '…'; btn.disabled = true;
-  const r = await apiTitles(body);
+  const r = await api('/api/titles', { article: body });
   btn.textContent = '↺ 재생성'; btn.disabled = false;
   if (r.error) return alert(r.error);
   if (r.titles) {
     a.titleIterations.push(r.titles);
     a.selectedTitleIteration = a.titleIterations.length - 1;
     a.selectedTitleIndex = 0;
+    if (!a.cost) a.cost = { translation: 0, titles: 0, image: 0 };
+    a.cost.titles += calcTextCostCAD(r.model, r.inputTokens, r.outputTokens);
   }
   renderPanel(); autoSave();
 }
@@ -638,130 +712,16 @@ async function regenerateImage() {
   const btn = event.target;
   btn.textContent = '…'; btn.disabled = true;
   const summary = (a.scrapedTitle || '').slice(0, 300);
-  const r = await apiImage(summary);
+  const articleText = a.originalText || '';
+  const r = await api('/api/image', { summary, articleText });
   btn.textContent = '↺ 재생성'; btn.disabled = false;
   if (r.error) return alert(r.error);
-  a.imageIterations.push({ data: r.image, prompt: r.prompt });
+  a.imageIterations.push({ data: r.image, prompt: r.prompt, creativePrompt: r.creativePrompt });
   a.selectedImageIteration = a.imageIterations.length - 1;
+  if (!a.cost) a.cost = { translation: 0, titles: 0, image: 0 };
+  a.cost.image += calcTextCostCAD(r.promptModel, r.promptInputTokens, r.promptOutputTokens);
+  a.cost.image += calcImgCostCAD(r.model);
   renderPanel(); autoSave();
-}
-
-// ─── Direct API implementations ───────────────────────────────────────────────
-async function apiScrape(url) {
-  try {
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const r = await fetch(proxyUrl);
-    const data = await r.json();
-    if (!data.contents) throw new Error('페이지를 가져올 수 없습니다');
-    const doc = new DOMParser().parseFromString(data.contents, 'text/html');
-    const base = doc.createElement('base');
-    base.href = url;
-    doc.head.prepend(base);
-    const reader = new Readability(doc);
-    const article = reader.parse();
-    if (!article) throw new Error('기사 내용을 추출할 수 없습니다');
-    return { title: article.title, content: article.textContent.trim(), excerpt: article.excerpt || '' };
-  } catch(e) { return { error: e.message }; }
-}
-
-async function apiTranslate(text) {
-  try {
-    const { provider, model } = settings.aiRouting.translation;
-    const prompt = `${settings.prompts.translation}\n\n기사 원문:\n${text}`;
-    const result = provider === 'openai'
-      ? await callOpenAIText(settings.apiKeys.openai, model, prompt)
-      : await callGemini(settings.apiKeys.gemini, model, prompt);
-    return { text: result };
-  } catch(e) { return { error: e.message }; }
-}
-
-async function apiTitles(article) {
-  try {
-    const { provider, model } = settings.aiRouting.titles;
-    const prompt = `${settings.prompts.titles}\n\n기사:\n${article}`;
-    const result = provider === 'openai'
-      ? await callOpenAIText(settings.apiKeys.openai, model, prompt)
-      : await callGemini(settings.apiKeys.gemini, model, prompt);
-    const jsonMatch = result.match(/\[[\s\S]*?\]/);
-    if (!jsonMatch) throw new Error('제목 생성 응답을 파싱할 수 없습니다');
-    const titles = JSON.parse(jsonMatch[0]);
-    return { titles };
-  } catch(e) { return { error: e.message }; }
-}
-
-async function apiImage(summary) {
-  try {
-    const { provider, model } = settings.aiRouting.image;
-    const imagePrompt = settings.prompts.image.replace('{summary}', summary);
-    const image = provider === 'gemini'
-      ? await generateImageGemini(settings.apiKeys.gemini, model, imagePrompt)
-      : await generateImageOpenAI(settings.apiKeys.openai, model, imagePrompt);
-    return { image, prompt: imagePrompt };
-  } catch(e) { return { error: e.message }; }
-}
-
-// ─── AI helpers ───────────────────────────────────────────────────────────────
-async function callGemini(apiKey, model, prompt) {
-  if (!apiKey) throw new Error('Gemini API 키가 설정되지 않았습니다');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 8192 } })
-  });
-  const data = await r.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-}
-
-async function callOpenAIText(apiKey, model, prompt) {
-  if (!apiKey) throw new Error('OpenAI API 키가 설정되지 않았습니다');
-  const r = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: model || 'gpt-4o', messages: [{ role: 'user', content: prompt }], temperature: 0.7 })
-  });
-  const data = await r.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.choices?.[0]?.message?.content || '';
-}
-
-async function generateImageGemini(apiKey, model, prompt) {
-  if (!apiKey) throw new Error('Gemini API 키가 설정되지 않았습니다');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] }
-    })
-  });
-  const data = await r.json();
-  if (data.error) throw new Error(data.error.message);
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  const imgPart = parts.find(p => p.inlineData);
-  if (!imgPart) throw new Error('Gemini에서 이미지를 받지 못했습니다');
-  const mime = imgPart.inlineData.mimeType || 'image/jpeg';
-  return `data:${mime};base64,${imgPart.inlineData.data}`;
-}
-
-async function generateImageOpenAI(apiKey, model, prompt) {
-  if (!apiKey) throw new Error('OpenAI API 키가 설정되지 않았습니다');
-  const resolvedModel = model || 'gpt-image-2';
-  const body = resolvedModel.startsWith('dall-e')
-    ? { model: resolvedModel, prompt, n: 1, size: '1024x1024', response_format: 'b64_json' }
-    : { model: resolvedModel, prompt, n: 1, size: '1024x1024' };
-  const r = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-    body: JSON.stringify(body)
-  });
-  const data = await r.json();
-  if (data.error) throw new Error(data.error.message);
-  const b64 = data.data?.[0]?.b64_json;
-  if (!b64) throw new Error('이미지 데이터를 받지 못했습니다');
-  return `data:image/jpeg;base64,${b64}`;
 }
 
 // ─── Iteration nav ────────────────────────────────────────────────────────────
@@ -778,7 +738,63 @@ function stepTitleIter(dir) {
 function stepImgIter(dir) {
   const a = selected(); if (!a) return;
   a.selectedImageIteration = clamp(a.selectedImageIteration + dir, 0, a.imageIterations.length - 1);
+  renderPanel(); autoSave();
+}
+
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
+function openLightbox(dataUrl) {
+  document.getElementById('lightbox-img').src = dataUrl;
+  document.getElementById('lightbox').classList.add('open');
+  document.addEventListener('keydown', onLightboxKey);
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = '';
+  document.removeEventListener('keydown', onLightboxKey);
+}
+function onLightboxKey(e) { if (e.key === 'Escape') closeLightbox(); }
+
+// ─── Split view ───────────────────────────────────────────────────────────────
+function toggleSplitView() {
+  splitViewEnabled = !splitViewEnabled;
+  const btn = document.getElementById('split-toggle-btn');
+  if (btn) btn.classList.toggle('primary', splitViewEnabled);
   renderPanel();
+}
+
+// ─── Custom prompt regeneration ───────────────────────────────────────────────
+async function regenerateBodyCustom() {
+  const a = selected(); if (!a || !a.originalText) return;
+  const customInstruction = document.getElementById('body-custom-prompt').value.trim();
+  if (!customInstruction) return regenerateBody();
+  const btn = event.target;
+  btn.textContent = '…'; btn.disabled = true;
+  const r = await api('/api/translate', { text: a.originalText, customInstruction });
+  btn.textContent = '↺ 재번역'; btn.disabled = false;
+  if (r.error) return alert(r.error);
+  a.bodyIterations.push(r.text);
+  a.selectedBodyIteration = a.bodyIterations.length - 1;
+  if (!a.cost) a.cost = { translation: 0, titles: 0, image: 0 };
+  a.cost.translation += calcTextCostCAD(r.model, r.inputTokens, r.outputTokens);
+  renderPanel(); autoSave();
+}
+
+async function regenerateImageCustom() {
+  const a = selected(); if (!a) return;
+  const customInstruction = document.getElementById('image-custom-prompt').value.trim();
+  if (!customInstruction) return regenerateImage();
+  const btn = event.target;
+  btn.textContent = '…'; btn.disabled = true;
+  const summary = (a.scrapedTitle || '').slice(0, 300);
+  const r = await api('/api/image', { summary, articleText: a.originalText || '', customInstruction });
+  btn.textContent = '↺ 이미지 생성'; btn.disabled = false;
+  if (r.error) return alert(r.error);
+  a.imageIterations.push({ data: r.image, prompt: r.prompt, creativePrompt: r.creativePrompt });
+  a.selectedImageIteration = a.imageIterations.length - 1;
+  if (!a.cost) a.cost = { translation: 0, titles: 0, image: 0 };
+  a.cost.image += calcTextCostCAD(r.promptModel, r.promptInputTokens, r.promptOutputTokens);
+  a.cost.image += calcImgCostCAD(r.model);
+  renderPanel(); autoSave();
 }
 
 // ─── Render sidebar ───────────────────────────────────────────────────────────
@@ -786,6 +802,8 @@ function renderSidebar() {
   const list = document.getElementById('article-list');
   document.getElementById('article-count').textContent = `${articles.length}개 기사`;
   list.innerHTML = '';
+
+  // collapsed dots
   const dots = document.getElementById('sidebar-collapsed-dots');
   dots.innerHTML = '';
 
@@ -793,11 +811,13 @@ function renderSidebar() {
     const selTitle = a.titleIterations?.[a.selectedTitleIteration]?.[a.selectedTitleIndex];
     const displayTitle = selTitle?.title || a.scrapedTitle || a.url.slice(0,40);
 
+    // dot
     const dot = document.createElement('div');
     dot.className = 'collapsed-dot ' + (a.status==='done' ? 'done' : a.status==='error' ? '' : 'working');
     dot.title = `${i+1}. ${a.domain}`;
     dots.appendChild(dot);
 
+    // item
     const item = document.createElement('div');
     item.className = 'article-item' + (a.id === selectedId ? ' active' : '');
     item.dataset.id = a.id;
@@ -810,6 +830,7 @@ function renderSidebar() {
           <span class="status-badge ${statusClass(a.status)}">${statusLabel(a.status)}</span>
         </div>
         <div class="article-item-title">${escHtml(displayTitle)}</div>
+        ${fmtCAD(articleCostCAD(a)) ? `<div class="article-cost">${fmtCAD(articleCostCAD(a))}</div>` : ''}
       </div>
       <button class="article-delete-btn" onclick="deleteArticle('${a.id}',event)" title="삭제">✕</button>
     `;
@@ -819,13 +840,16 @@ function renderSidebar() {
       renderSidebar();
       renderPanel();
     });
+    // drag
     item.addEventListener('dragstart', e => { dragSrcId = a.id; item.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
     item.addEventListener('dragend', () => item.classList.remove('dragging'));
     item.addEventListener('dragover', e => { e.preventDefault(); item.classList.add('drag-over'); });
     item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
     item.addEventListener('drop', e => { e.preventDefault(); item.classList.remove('drag-over'); reorderArticle(dragSrcId, a.id); });
+
     list.appendChild(item);
   });
+  updateTotalCost();
 }
 
 function reorderArticle(srcId, targetId) {
@@ -868,66 +892,111 @@ function renderPanel() {
   content.style.display = 'flex';
 
   document.getElementById('panel-source').textContent = `${a.domain} · ${statusLabel(a.status)}`;
+  const urlEl = document.getElementById('panel-url');
+  if (urlEl) { urlEl.href = a.url; urlEl.textContent = a.url; urlEl.title = a.url; }
 
+  // ── Titles ──
   const titlesBody = document.getElementById('titles-body');
   const titleIters = a.titleIterations || [];
   const curTitles = titleIters[a.selectedTitleIteration] || [];
+
   updateIterNav('title', a.selectedTitleIteration, titleIters.length);
 
-  if (a.status !== 'done' && titleIters.length === 0) {
+  if (a.status === 'error' && titleIters.length === 0) {
+    titlesBody.innerHTML = `<div class="working-msg" style="color:var(--red);">오류: ${escHtml(a.error || '알 수 없는 오류')}</div>`;
+  } else if (a.status !== 'done' && titleIters.length === 0) {
     titlesBody.innerHTML = `<div class="working-msg"><span class="spinner"></span> ${statusLabel(a.status)}...</div>`;
   } else if (curTitles.length === 0) {
     titlesBody.innerHTML = `<div class="working-msg" style="color:var(--text3);">제목 없음</div>`;
   } else {
-    titlesBody.innerHTML = curTitles.map((t, i) => `
-      <div class="title-option ${i === a.selectedTitleIndex ? 'selected' : ''}" onclick="selectTitle(${i})">
-        <div class="title-radio"></div>
-        <div class="title-texts">
-          <div class="title-main"
-               ondblclick="makeEditable(this, '${a.id}','title',${i})"
-               data-iter="${a.selectedTitleIteration}" data-idx="${i}" data-field="title"
-          >${escHtml(t.title || '')}</div>
-          <div class="title-sub"
-               ondblclick="makeEditable(this, '${a.id}','subtitle',${i})"
-               data-iter="${a.selectedTitleIteration}" data-idx="${i}" data-field="subtitle"
-          >${escHtml(t.subtitle || '')}</div>
-        </div>
-      </div>
-    `).join('');
+    const titleText = curTitles.map(t => `${t.title || ''}\n${t.subtitle || ''}`).join('\n\n');
+    titlesBody.innerHTML = `<textarea
+      style="flex:1;width:100%;height:100%;padding:14px 16px;font-size:16px;font-family:inherit;line-height:1.8;border:none;outline:none;resize:none;background:transparent;color:var(--text);"
+      onblur="saveTitleTextarea('${a.id}', ${a.selectedTitleIteration}, this.value)"
+      placeholder="제목과 소제목이 여기에 표시됩니다..."
+    >${escHtml(titleText)}</textarea>`;
   }
 
+  // ── Image ──
   const imgIters = a.imageIterations || [];
   const curImg = imgIters[a.selectedImageIteration];
   updateIterNav('img', a.selectedImageIteration, imgIters.length);
 
   const preview = document.getElementById('image-preview');
+  const promptLabel = document.getElementById('image-prompt-label');
   const promptText = document.getElementById('image-prompt-text');
+  const fullPromptWrap = document.getElementById('image-full-prompt-wrap');
+  const fullPromptEl = document.getElementById('image-full-prompt');
+
   if (curImg) {
-    preview.innerHTML = `<img src="${curImg.data}" alt="생성 이미지">`;
-    promptText.textContent = curImg.prompt || '—';
+    _displayedImageData = curImg.data;
+    const imgEl = document.createElement('img');
+    imgEl.src = curImg.data;
+    imgEl.alt = '생성 이미지';
+    imgEl.title = '클릭하여 크게 보기';
+    imgEl.addEventListener('click', () => openLightbox(curImg.data));
+    preview.innerHTML = '';
+    preview.appendChild(imgEl);
+
+    // Always show the full combined prompt. If we also have the AI-generated part, show it separately above.
+    if (curImg.creativePrompt) {
+      promptLabel.textContent = 'AI 생성 프롬프트 (기사 분석)';
+      promptText.textContent = curImg.creativePrompt;
+      if (fullPromptWrap) {
+        fullPromptEl.textContent = curImg.prompt || '';
+        fullPromptWrap.style.display = '';
+      }
+    } else {
+      promptLabel.textContent = '최종 이미지 프롬프트';
+      promptText.textContent = curImg.prompt || '—';
+      if (fullPromptWrap) fullPromptWrap.style.display = 'none';
+    }
   } else {
-    preview.innerHTML = `<div id="image-placeholder" style="color:var(--text3);font-size:11px;text-align:center;">${a.status==='generating'?'생성 중...':'이미지 없음'}</div>`;
+    _displayedImageData = null;
+    preview.innerHTML = `<div id="image-placeholder" style="color:var(--text3);font-size:12px;text-align:center;">${a.status==='generating'?'생성 중...':'이미지 없음'}</div>`;
     promptText.textContent = '—';
+    if (fullPromptWrap) fullPromptWrap.style.display = 'none';
   }
 
+  // ── Body ──
   const bodyIters = a.bodyIterations || [];
   const curBody = bodyIters[a.selectedBodyIteration] || '';
   updateIterNav('body', a.selectedBodyIteration, bodyIters.length);
 
   const bodyEl = document.getElementById('body-content');
-  bodyEl.contentEditable = 'false';
-  if (a.status !== 'done' && bodyIters.length === 0) {
-    bodyEl.innerHTML = `<div class="working-msg"><span class="spinner"></span> ${statusLabel(a.status)}...</div>`;
+  const splitView = document.getElementById('split-view');
+  const splitBtn = document.getElementById('split-toggle-btn');
+
+  if (splitViewEnabled && a.originalText) {
+    bodyEl.style.display = 'none';
+    splitView.style.display = 'flex';
+    document.getElementById('split-original').innerHTML =
+      `<div class="split-label">원문 (English)</div><div style="white-space:pre-wrap;">${escHtml(a.originalText)}</div>`;
+    document.getElementById('split-translated').innerHTML =
+      `<div class="split-label">번역 (한국어)</div><div style="white-space:pre-wrap;">${escHtml(curBody)}</div>`;
+    if (splitBtn) { splitBtn.textContent = '✕ 비교 닫기'; splitBtn.classList.add('primary'); }
   } else {
-    bodyEl.textContent = curBody;
-    bodyEl.title = '더블클릭하여 편집';
+    bodyEl.style.display = '';
+    splitView.style.display = 'none';
+    if (splitBtn) { splitBtn.textContent = '⇔ 원문 비교'; splitBtn.classList.remove('primary'); }
+    bodyEl.contentEditable = 'false';
+    if (a.status === 'error' && bodyIters.length === 0) {
+      bodyEl.innerHTML = `<div class="working-msg" style="color:var(--red);">오류: ${escHtml(a.error || '알 수 없는 오류')}</div>`;
+    } else if (a.status !== 'done' && bodyIters.length === 0) {
+      bodyEl.innerHTML = `<div class="working-msg"><span class="spinner"></span> ${statusLabel(a.status)}...</div>`;
+    } else {
+      bodyEl.textContent = curBody;
+    }
   }
 }
 
 function updateIterNav(prefix, cur, total) {
-  document.getElementById(`${prefix}-iter-count`).textContent = total === 0 ? '—' : `${cur+1}/${total}`;
-  document.getElementById(`${prefix}-prev`).disabled = cur <= 0 || total === 0;
-  document.getElementById(`${prefix}-next`).disabled = cur >= total - 1 || total === 0;
+  const count = document.getElementById(`${prefix}-iter-count`);
+  const prev = document.getElementById(`${prefix}-prev`);
+  const next = document.getElementById(`${prefix}-next`);
+  count.textContent = total === 0 ? '—' : `${cur+1}/${total}`;
+  prev.disabled = cur <= 0 || total === 0;
+  next.disabled = cur >= total - 1 || total === 0;
 }
 
 function selectTitle(idx) {
@@ -935,6 +1004,61 @@ function selectTitle(idx) {
   a.selectedTitleIndex = idx;
   renderPanel();
   autoSave();
+}
+
+function selectTitlePair(idx) {
+  const a = selected(); if (!a) return;
+  a.selectedTitleIndex = idx;
+  // Update classes without full re-render
+  document.querySelectorAll('.title-pair').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+    const num = el.querySelector('.title-pair-num');
+    if (num) num.textContent = `옵션 ${i+1}${i === idx ? ' · 선택됨' : ''}`;
+  });
+  autoSave();
+}
+
+function saveTitleTextarea(id, iter, text) {
+  const a = getArticle(id); if (!a) return;
+  const blocks = text.trim().split(/\n\s*\n/);
+  if (!a.titleIterations[iter]) return;
+  blocks.forEach((block, i) => {
+    if (!a.titleIterations[iter][i]) return;
+    const lines = block.trim().split('\n');
+    a.titleIterations[iter][i].title = (lines[0] || '').trim();
+    a.titleIterations[iter][i].subtitle = (lines[1] || '').trim();
+  });
+  autoSave();
+}
+
+function updateTitleField(id, iter, idx, field, value) {
+  const a = getArticle(id); if (!a) return;
+  if (a.titleIterations[iter]?.[idx]) {
+    a.titleIterations[iter][idx][field === 'title' ? 'title' : 'subtitle'] = value;
+  }
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(autoSave, 1500);
+}
+
+async function regenerateTitlesCustom() {
+  const a = selected(); if (!a) return;
+  const customInstruction = document.getElementById('titles-custom-prompt').value.trim();
+  if (!customInstruction) return regenerateTitles();
+  const body = a.bodyIterations[a.selectedBodyIteration];
+  if (!body) return;
+  const btn = event.target;
+  btn.textContent = '…'; btn.disabled = true;
+  const r = await api('/api/titles', { article: body, customInstruction });
+  btn.textContent = '↺ 재생성'; btn.disabled = false;
+  if (r.error) return alert(r.error);
+  if (r.titles) {
+    a.titleIterations.push(r.titles);
+    a.selectedTitleIteration = a.titleIterations.length - 1;
+    a.selectedTitleIndex = 0;
+    if (!a.cost) a.cost = { translation: 0, titles: 0, image: 0 };
+    a.cost.titles += calcTextCostCAD(r.model, r.inputTokens, r.outputTokens);
+  }
+  renderPanel(); autoSave();
 }
 
 // ─── Inline editing ───────────────────────────────────────────────────────────
@@ -993,9 +1117,10 @@ function downloadSingle() {
   const sel = a.titleIterations?.[a.selectedTitleIteration]?.[a.selectedTitleIndex];
   const name = safeFileName(sel?.title || a.domain);
   const idx = articles.indexOf(a);
-  const baseName = `${String(idx+1).padStart(2,'0')}_${name}`;
+  const num = String(idx+1).padStart(2,'0');
+  const baseName = `${num}_${name}`;
   triggerDownload(articleToText(a), `${baseName}.txt`, 'text/plain;charset=utf-8');
-  const img = a.imageIterations?.[a.selectedImageIteration]?.data;
+  const img = _displayedImageData || a.imageIterations?.[a.selectedImageIteration]?.data;
   if (img) triggerDownloadDataURL(img, `${baseName}.jpg`);
 }
 
@@ -1029,22 +1154,36 @@ function triggerDownload(content, filename, type) {
 }
 
 function triggerDownloadDataURL(dataUrl, filename) {
-  const a = document.createElement('a');
-  a.href = dataUrl; a.download = filename; a.click();
+  // Convert data URL → blob to avoid browser size limits on raw data URLs
+  const parts = dataUrl.match(/^data:(.*?);base64,(.*)$/s);
+  if (parts) {
+    const mime = parts[1];
+    const bytes = atob(parts[2]);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const blob = new Blob([arr], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } else {
+    const a = document.createElement('a');
+    a.href = dataUrl; a.download = filename; a.click();
+  }
 }
 
 // ─── Auto-save ────────────────────────────────────────────────────────────────
 function autoSave() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    saveArticlesLocal();
+  saveTimer = setTimeout(async () => {
+    await fetch('/api/save-state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ articles }) });
     const s = document.getElementById('save-status');
     s.classList.add('show');
     setTimeout(() => s.classList.remove('show'), 2000);
   }, 1000);
 }
 
-// ─── Settings UI ──────────────────────────────────────────────────────────────
+// ─── Settings ─────────────────────────────────────────────────────────────────
 const MODEL_OPTS = {
   gemini: GEMINI_MODELS,
   openai: OPENAI_TEXT_MODELS,
@@ -1053,6 +1192,7 @@ const MODEL_OPTS = {
 };
 
 function openSettings() {
+  // populate fields
   document.getElementById('key-gemini').value = settings.apiKeys?.gemini || '';
   document.getElementById('key-openai').value = settings.apiKeys?.openai || '';
 
@@ -1069,6 +1209,8 @@ function openSettings() {
   document.getElementById('prompt-titles-text').value = settings.prompts?.titles || '';
   document.getElementById('prompt-image-text').value = settings.prompts?.image || '';
 
+  document.getElementById('save-folder').value = settings.saveFolder || '';
+  updateSaveFolderPreview();
   const toggle = document.getElementById('auto-load-toggle');
   toggle.className = 'toggle ' + (settings.autoLoadToday ? 'on' : 'off');
 
@@ -1084,11 +1226,24 @@ function updateModelOptions(k) {
   const provider = document.getElementById(`route-${k}-provider`).value;
   const modelSel = document.getElementById(`route-${k}-model`);
   const isImage = k === 'image';
-  const models = isImage
-    ? (provider === 'openai' ? OPENAI_IMAGE_MODELS : GEMINI_IMAGE_MODELS)
-    : (provider === 'openai' ? OPENAI_TEXT_MODELS : GEMINI_MODELS);
+  let models;
+  if (isImage) {
+    models = provider === 'openai' ? OPENAI_IMAGE_MODELS : GEMINI_IMAGE_MODELS;
+  } else {
+    models = provider === 'openai' ? OPENAI_TEXT_MODELS : GEMINI_MODELS;
+  }
   const cur = settings.aiRouting?.[taskKey]?.model || models[0];
   modelSel.innerHTML = models.map(m => `<option value="${m}" ${m===cur?'selected':''}>${m}</option>`).join('');
+  if (isImage) updateImageSizeOptions();
+}
+
+function updateImageSizeOptions() {
+  const model = document.getElementById('route-image-model')?.value || '';
+  const sizeSel = document.getElementById('route-image-size');
+  if (!sizeSel) return;
+  const opts = IMAGE_SIZES[model] || DEFAULT_IMAGE_SIZES;
+  const cur = settings.aiRouting?.image?.imageSize || '1536x1024';
+  sizeSel.innerHTML = opts.map(o => `<option value="${o.v}" ${o.v===cur?'selected':''}>${o.l}</option>`).join('');
 }
 
 function showSettingsTab(tab) {
@@ -1113,10 +1268,19 @@ function toggleKey(id) {
 
 function toggleAutoLoad() {
   const t = document.getElementById('auto-load-toggle');
-  t.className = 'toggle ' + (t.classList.contains('on') ? 'off' : 'on');
+  const isOn = t.classList.contains('on');
+  t.className = 'toggle ' + (isOn ? 'off' : 'on');
 }
 
-function saveSettings() {
+function updateSaveFolderPreview() {
+  const folder = document.getElementById('save-folder').value;
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  document.getElementById('save-folder-preview').textContent = folder ? `오늘 기사 저장 위치 → ${folder}/${dateStr}/` : '';
+}
+document.getElementById('save-folder').addEventListener('input', updateSaveFolderPreview);
+
+async function saveSettings() {
   settings.apiKeys = {
     gemini: document.getElementById('key-gemini').value,
     openai: document.getElementById('key-openai').value,
@@ -1124,42 +1288,40 @@ function saveSettings() {
   settings.aiRouting = {
     translation: { provider: document.getElementById('route-trans-provider').value, model: document.getElementById('route-trans-model').value },
     titles:      { provider: document.getElementById('route-titles-provider').value, model: document.getElementById('route-titles-model').value },
-    image:       { provider: document.getElementById('route-image-provider').value, model: document.getElementById('route-image-model').value },
+    image:       { provider: document.getElementById('route-image-provider').value, model: document.getElementById('route-image-model').value, imageSize: document.getElementById('route-image-size').value || '1536x1024' },
   };
   settings.prompts = {
     translation: document.getElementById('prompt-translation-text').value,
     titles:      document.getElementById('prompt-titles-text').value,
     image:       document.getElementById('prompt-image-text').value,
   };
+  settings.saveFolder = document.getElementById('save-folder').value;
   settings.autoLoadToday = document.getElementById('auto-load-toggle').classList.contains('on');
-  persistSettings(settings);
-  hideBanner();
+
+  await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings) });
   closeSettings();
 }
 
-function resetPrompts() {
+async function resetPrompts() {
   if (!confirm('프롬프트를 기본값으로 초기화할까요?')) return;
-  document.getElementById('prompt-translation-text').value = DEFAULT_SETTINGS.prompts.translation;
-  document.getElementById('prompt-titles-text').value = DEFAULT_SETTINGS.prompts.titles;
-  document.getElementById('prompt-image-text').value = DEFAULT_SETTINGS.prompts.image;
-}
-
-function clearTodayData() {
-  if (!confirm('오늘 저장된 기사를 모두 삭제할까요?')) return;
-  localStorage.removeItem(todayKey());
-  articles = [];
-  selectedId = null;
-  renderSidebar();
-  renderPanel();
-  closeSettings();
+  const defaults = await fetch('/api/settings').then(r => r.json());
+  document.getElementById('prompt-translation-text').value = defaults.prompts.translation;
+  document.getElementById('prompt-titles-text').value = defaults.prompts.titles;
+  document.getElementById('prompt-image-text').value = defaults.prompts.image;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function api(path, body) {
+  return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(r => r.json()).catch(e => ({ error: e.message }));
+}
+
 function getArticle(id) { return articles.find(a => a.id === id); }
 function selected() { return getArticle(selectedId); }
 function setStatus(id, status, err) { const a = getArticle(id); if (a) { a.status = status; if (err) a.error = err; } }
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escAttr(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function statusLabel(s) {
   return { pending:'대기 중', scraping:'스크래핑 중', translating:'번역 중', generating:'생성 중', done:'완료', error:'오류' }[s] || s;
