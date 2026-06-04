@@ -165,7 +165,10 @@ app.post('/api/image', async (req, res) => {
   } catch (_) { /* fall back to summary */ }
 
   // Step 2: Combine with user's pre-prompt template (+ optional custom instruction)
-  let imagePrompt = settings.prompts.image.replace('{summary}', creativePrompt);
+  // If user included {summary} placeholder, replace it; otherwise append the creative prompt
+  let imagePrompt = settings.prompts.image.includes('{summary}')
+    ? settings.prompts.image.replace('{summary}', creativePrompt)
+    : `${settings.prompts.image}\n\n${creativePrompt}`;
   if (customInstruction) imagePrompt += `\n\nAdditional instruction: ${customInstruction}`;
 
   // Step 3: Generate image
